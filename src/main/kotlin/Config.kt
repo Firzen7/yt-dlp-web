@@ -23,6 +23,8 @@ val SERVER_HOSTNAME = conf[Key("server.hostname", stringType)]
 
 val DOWNLOAD_DIRECTORY = conf[Key("fs.download_directory", stringType)]
 
+val USERS_FILE = conf[Key("auth.users_file", stringType)]
+
 
 
 private fun availableConfigPath() : String {

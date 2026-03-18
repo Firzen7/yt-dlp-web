@@ -59,6 +59,9 @@ dependencies {
 
     // Konfig - simple configuration file API for Kotlin, https://github.com/npryce/konfig, Apache 2.0 license
     implementation("com.natpryce:konfig:1.6.10.0")
+
+    // Bouncy Castle - cryptographic library for scrypt password hashing, MIT license
+    implementation("org.bouncycastle:bcprov-jdk18on:1.80")
 }
 
 tasks.test {
