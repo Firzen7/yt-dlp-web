@@ -102,6 +102,7 @@ fun startServer() {
                 }
 
                 val taskId = UUID.randomUUID().toString()
+                Logger.i("Received download request. Task ID: \$taskId, URL: \$url, Format: \$format")
                 tasks[taskId] = DownloadTask(status = "processing")
 
                 // Run download in background
@@ -120,9 +121,7 @@ fun startServer() {
 
                         if (exitCode == 0) {
                             // Find the downloaded file inside the unique task directory
-                            val latestFile = taskDir.listFiles()
-                                ?.filter { it.isFile }
-                                ?.firstOrNull()
+                            val latestFile = taskDir.listFiles()?.firstOrNull { it.isFile }
 
                             if (latestFile != null) {
                                 Logger.i("yt-dlp finished for taskId=$taskId. File resolved to: ${latestFile.absolutePath}")
@@ -203,11 +202,11 @@ fun startServer() {
 
                 val file = File(task.filePath)
                 if (!file.exists()) {
-                    Logger.w("Failed to serve file for taskId=\$taskId: \${file.absolutePath} - File not found!")
+                    Logger.w("Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!")
                     return@get call.respondText("File not found", status = HttpStatusCode.NotFound)
                 }
 
-                Logger.i("Serving file to user for taskId=\$taskId: \${file.absolutePath}")
+                Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
                 call.response.header(
                     HttpHeaders.ContentDisposition,
                     ContentDisposition.Attachment.withParameter(
@@ -281,19 +280,21 @@ fun downloadMedia(
     url: Url, outputDir: File, audioOnly: Boolean,
     progressCallback: (Double?) -> Unit
 ): Int {
-    Logger.i("downloadMedia()")
+    Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
     val errorTag = "ERR"
 
     fun BufferedReader.consumeLines(tag: String): kotlinx.coroutines.Job {
-        Logger.i("consumeLines()")
         return CoroutineScope(Dispatchers.IO).launch {
             forEachLine { line ->
+                // Stream yt-dlp output to our console logger for robust tracking
+                Logger.d("[$tag] $line")
+                
                 val percent = Regex("""\d+(\.\d+)?%""")
                     .find(line)
                     ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
 
-                if (tag == outTag) {
+                if (tag == outTag && percent != null) {
                     progressCallback(percent)
                 }
             }
@@ -301,11 +302,13 @@ fun downloadMedia(
     }
 
     return kotlinx.coroutines.runBlocking {
-        val commandList = mutableListOf("yt-dlp", "--no-playlist", "--paths", outputDir.absolutePath)
+        val commandList = mutableListOf("yt-dlp", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
         if (audioOnly) {
             commandList.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
         }
         commandList.add(url.toString())
+
+        Logger.i("Executing yt-dlp with arguments: ${commandList.joinToString(" ")}")
 
         val process = ProcessBuilder(commandList)
             .directory(outputDir)
