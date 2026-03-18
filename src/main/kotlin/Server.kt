@@ -27,7 +27,8 @@ data class UserSession(val username: String)
 data class DownloadTask(
     val status: String,
     val filePath: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val progress: Double? = null
 )
 
 private val tasks = ConcurrentHashMap<String, DownloadTask>()
@@ -113,7 +114,12 @@ fun startServer() {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val audioOnly = format == "mp3"
-                        val exitCode = downloadMedia(url, DOWNLOAD_DIRECTORY, audioOnly)
+                        val exitCode = downloadMedia(url, DOWNLOAD_DIRECTORY, audioOnly) { percent ->
+                            val currentTask = tasks[taskId]
+                            if (currentTask != null) {
+                                tasks[taskId] = currentTask.copy(progress = percent)
+                            }
+                        }
 
                         if (exitCode == 0) {
                             // Find the most recently created file in download dir
@@ -172,6 +178,7 @@ fun startServer() {
                         val obj = JSONObject()
                         obj.put("status", task.status)
                         if (task.error != null) obj.put("error", task.error)
+                        if (task.progress != null) obj.put("progress", task.progress)
                         call.respondJson(obj.toString())
                     }
                 }

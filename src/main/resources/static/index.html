@@ -52,7 +52,11 @@
                         <span class="btn-text">STÁHNOUT NYNÍ</span> <i class="fa-solid fa-download"></i>
                     </button>
                     <div id="status-message" class="status-message hidden">
-                        <i class="fa-solid fa-circle-notch fa-spin"></i> Zpracovávám...
+                        <div class="progress-bar-bg" id="progress-bar-bg"
+                            style="position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 195, 255, 0.2); width: 0%; border-radius: 12px; transition: width 0.3s; z-index: 1;">
+                        </div>
+                        <i class="fa-solid fa-circle-notch fa-spin" style="z-index: 2;"></i> <span id="status-text"
+                            style="z-index: 2;">Zpracovávám...</span>
                     </div>
                     <a id="download-link" class="btn-success hidden" href="#" download>
                         ULOŽIT SOUBOR <i class="fa-solid fa-check"></i>
