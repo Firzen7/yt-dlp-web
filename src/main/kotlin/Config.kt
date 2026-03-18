@@ -32,6 +32,7 @@ val USERS_FILE = try {
 
 
 private fun availableConfigPath() : String {
+    Logger.i("availableConfigPath()")
     if(File(CONFIG_FILE).exists()) {
         return CONFIG_FILE
     }

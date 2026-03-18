@@ -33,6 +33,7 @@ data class DownloadTask(
 private val tasks = ConcurrentHashMap<String, DownloadTask>()
 
 fun startServer() {
+    Logger.i("startServer()")
     println("Yt-dlp-web is starting ...")
 
     val userManager = UserManager(File(USERS_FILE))
@@ -225,10 +226,12 @@ fun startServer() {
 }
 
 fun downloadVideo(rawUrl: String, progressCallback: (Double?) -> Unit = {}) {
+    Logger.i("downloadVideo()")
     downloadMedia(rawUrl, DOWNLOAD_DIRECTORY, false, progressCallback)
 }
 
 fun downloadAudio(rawUrl: String, progressCallback: (Double?) -> Unit = {}) {
+    Logger.i("downloadAudio()")
     downloadMedia(rawUrl, DOWNLOAD_DIRECTORY, true, progressCallback)
 }
 
@@ -240,6 +243,7 @@ fun downloadMedia(
     rawUrl: String, outputDir: String, audioOnly: Boolean = false,
     progressCallback: (Double?) -> Unit = {}
 ): Int {
+    Logger.i("downloadMedia()")
 
     val dir = File(outputDir)
 
@@ -265,17 +269,21 @@ fun downloadMedia(
     url: Url, outputDir: File, audioOnly: Boolean,
     progressCallback: (Double?) -> Unit
 ): Int {
+    Logger.i("downloadMedia()")
     val outTag = "OUT"
     val errorTag = "ERR"
 
-    fun BufferedReader.consumeLines(tag: String) = CoroutineScope(Dispatchers.IO).launch {
-        forEachLine { line ->
-            val percent = Regex("""\d+(\.\d+)?%""")
-                .find(line)
-                ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
+    fun BufferedReader.consumeLines(tag: String): kotlinx.coroutines.Job {
+        Logger.i("consumeLines()")
+        return CoroutineScope(Dispatchers.IO).launch {
+            forEachLine { line ->
+                val percent = Regex("""\d+(\.\d+)?%""")
+                    .find(line)
+                    ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
 
-            if (tag == outTag) {
-                progressCallback(percent)
+                if (tag == outTag) {
+                    progressCallback(percent)
+                }
             }
         }
     }
