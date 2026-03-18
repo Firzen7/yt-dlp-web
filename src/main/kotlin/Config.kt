@@ -23,7 +23,11 @@ val SERVER_HOSTNAME = conf[Key("server.hostname", stringType)]
 
 val DOWNLOAD_DIRECTORY = conf[Key("fs.download_directory", stringType)]
 
-val USERS_FILE = conf[Key("auth.users_file", stringType)]
+val USERS_FILE = try {
+    conf[Key("auth.users_file", stringType)]
+} catch (e: Exception) {
+    "./users.conf"
+}
 
 
 
