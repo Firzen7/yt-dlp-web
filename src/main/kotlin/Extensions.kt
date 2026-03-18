@@ -14,11 +14,8 @@ fun String.isValidUrl(): Boolean {
     }
 }
 
-suspend fun RoutingCall.respondJson(
-    json: String,
-    status: HttpStatusCode = HttpStatusCode.OK
-) {
-    Logger.i("respondJson()")
+suspend fun RoutingCall.respondJson(json: String, status: HttpStatusCode = HttpStatusCode.OK) {
+    Logger.i("respondJson($json)")
     respondText(json, ContentType.Application.Json, status)
 }
 
