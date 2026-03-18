@@ -3,6 +3,7 @@ package net.firzen.web
 import java.io.File
 
 fun main(args: Array<String>) {
+    Logger.i("main()")
     if (args.isEmpty()) {
         println("Missing command. Use 'server' to start the server or 'adduser' to add a new user.")
         return

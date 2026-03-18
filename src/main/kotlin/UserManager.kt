@@ -35,6 +35,7 @@ class UserManager(private val usersFile: File) {
      * @throws IllegalArgumentException if the username already exists or is invalid
      */
     fun createUser(username: String, password: String) {
+        Logger.i("createUser()")
         require(username.isNotBlank()) { "Username must not be blank" }
         require(!username.contains(':')) { "Username must not contain ':'" }
         require(password.isNotEmpty()) { "Password must not be empty" }
@@ -61,6 +62,7 @@ class UserManager(private val usersFile: File) {
      * @return true if the username exists and the password matches
      */
     fun validateUser(username: String, password: String): Boolean {
+        Logger.i("validateUser()")
         val entries = readEntries()
         val entry = entries.find { it.username == username } ?: return false
 
@@ -78,12 +80,14 @@ class UserManager(private val usersFile: File) {
      * Checks if a user with the given username exists.
      */
     fun userExists(username: String): Boolean {
+        Logger.i("userExists()")
         return readEntries().any { it.username == username }
     }
 
     // -- Internal helpers --
 
     private fun generateSalt(): ByteArray {
+        Logger.i("generateSalt()")
         // Generate random bytes and encode as base64url-safe characters (matching Werkzeug)
         val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         val random = SecureRandom()
@@ -91,6 +95,7 @@ class UserManager(private val usersFile: File) {
     }
 
     private fun hashPassword(password: String, salt: ByteArray): ByteArray {
+        Logger.i("hashPassword()")
         return SCrypt.generate(
             password.toByteArray(Charsets.UTF_8),
             salt,
@@ -100,6 +105,7 @@ class UserManager(private val usersFile: File) {
     }
 
     private fun readEntries(): List<UserEntry> {
+        Logger.i("readEntries()")
         if (!usersFile.exists()) return emptyList()
 
         return usersFile.readLines()
@@ -114,6 +120,7 @@ class UserManager(private val usersFile: File) {
      * Format: username:scrypt:N:r:p$salt$hex_key
      */
     private fun parseEntry(line: String): UserEntry? {
+        Logger.i("parseEntry()")
         // Split on first ':' to get username and the rest
         val colonIndex = line.indexOf(':')
         if (colonIndex < 0) return null
@@ -152,9 +159,13 @@ class UserManager(private val usersFile: File) {
         val keyBytes: ByteArray
     )
 
-    private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
+    private fun ByteArray.toHexString(): String {
+        Logger.i("toHexString()")
+        return joinToString("") { "%02x".format(it) }
+    }
 
     private fun String.hexToByteArray(): ByteArray {
+        Logger.i("hexToByteArray()")
         check(length % 2 == 0) { "Hex string must have even length" }
         return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }
