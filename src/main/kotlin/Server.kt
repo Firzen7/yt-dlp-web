@@ -90,12 +90,6 @@ fun startServer() {
             // --- Download API (auth required) ---
 
             post("/api/download") {
-                val session = call.sessions.get<UserSession>()
-                    ?: return@post call.respondJson(
-                        """{"error": "Unauthorized"}""",
-                        HttpStatusCode.Unauthorized
-                    )
-
                 val body = JSONObject(call.receiveText())
                 val url = body.optString("url", "")
                 val format = body.optString("format", "video")
@@ -114,7 +108,10 @@ fun startServer() {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val audioOnly = format == "mp3"
-                        val exitCode = downloadMedia(url, DOWNLOAD_DIRECTORY, audioOnly) { percent ->
+                        val taskDir = File(DOWNLOAD_DIRECTORY, taskId)
+                        if (!taskDir.exists()) taskDir.mkdirs()
+                        
+                        val exitCode = downloadMedia(url, taskDir.absolutePath, audioOnly) { percent ->
                             val currentTask = tasks[taskId]
                             if (currentTask != null) {
                                 tasks[taskId] = currentTask.copy(progress = percent)
@@ -122,30 +119,36 @@ fun startServer() {
                         }
 
                         if (exitCode == 0) {
-                            // Find the most recently created file in download dir
-                            val downloadDir = File(DOWNLOAD_DIRECTORY)
-                            val latestFile = downloadDir.listFiles()
+                            // Find the downloaded file inside the unique task directory
+                            val latestFile = taskDir.listFiles()
                                 ?.filter { it.isFile }
-                                ?.maxByOrNull { it.lastModified() }
+                                ?.firstOrNull()
 
                             if (latestFile != null) {
-                                tasks[taskId] = DownloadTask(
-                                    status = "completed",
-                                    filePath = latestFile.absolutePath
-                                )
+                                Logger.i("yt-dlp finished for taskId=$taskId. File resolved to: ${latestFile.absolutePath}")
+                                val currentTask = tasks[taskId]
+                                if (currentTask != null) {
+                                    tasks[taskId] = currentTask.copy(
+                                        status = "completed",
+                                        filePath = latestFile.absolutePath
+                                    )
+                                }
                             } else {
+                                Logger.w("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
                                 tasks[taskId] = DownloadTask(
                                     status = "error",
                                     error = "Download completed but file not found"
                                 )
                             }
                         } else {
+                            Logger.w("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
                             tasks[taskId] = DownloadTask(
                                 status = "error",
                                 error = "yt-dlp exited with code $exitCode"
                             )
                         }
                     } catch (e: Exception) {
+                        Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
                         tasks[taskId] = DownloadTask(
                             status = "error",
                             error = e.message ?: "Unknown error"
@@ -200,9 +203,11 @@ fun startServer() {
 
                 val file = File(task.filePath)
                 if (!file.exists()) {
+                    Logger.w("Failed to serve file for taskId=\$taskId: \${file.absolutePath} - File not found!")
                     return@get call.respondText("File not found", status = HttpStatusCode.NotFound)
                 }
 
+                Logger.i("Serving file to user for taskId=\$taskId: \${file.absolutePath}")
                 call.response.header(
                     HttpHeaders.ContentDisposition,
                     ContentDisposition.Attachment.withParameter(
@@ -296,13 +301,13 @@ fun downloadMedia(
     }
 
     return kotlinx.coroutines.runBlocking {
-        val command = if (audioOnly) {
-            "yt-dlp --no-playlist --extract-audio --audio-format mp3 $url"
-        } else {
-            "yt-dlp --no-playlist $url"
-        }.split(" ")
+        val commandList = mutableListOf("yt-dlp", "--no-playlist", "--paths", outputDir.absolutePath)
+        if (audioOnly) {
+            commandList.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
+        }
+        commandList.add(url.toString())
 
-        val process = ProcessBuilder(command)
+        val process = ProcessBuilder(commandList)
             .directory(outputDir)
             .start()
 

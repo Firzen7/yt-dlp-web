@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
+    let currentMaxProgress = 0;
+
     // Logout
     logoutBtn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -52,16 +54,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progressBarBg) progressBarBg.style.width = '0%';
         const statusText = document.getElementById('status-text');
         if (statusText) statusText.textContent = 'Zpracovávám...';
+        currentMaxProgress = 0; // Reset max progress on UI reset
     };
 
     // Form submission
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const url = urlInput.value.trim();
-        if (!url) return;
+        errorMessage.classList.add('hidden');
 
-        const format = formatToggle.checked ? 'mp3' : 'video';
+        const url = document.getElementById('video-url').value.trim();
+        const format = document.getElementById('format-toggle').checked ? 'mp3' : 'video';
+
+        if (!url) {
+            errorMessage.textContent = 'Prosím, vložte URL adresu videa.';
+            errorMessage.classList.remove('hidden');
+            submitBtn.classList.remove('hidden');
+            statusMessage.classList.add('hidden');
+            return;
+        }
+
+        // Reset max progress for a new download
+        currentMaxProgress = 0;
 
         // Show loading state
         submitBtn.classList.add('hidden');
@@ -118,10 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Update progress if available
                 if (data.progress !== undefined && data.progress !== null) {
+                    if (data.progress > currentMaxProgress) {
+                        currentMaxProgress = data.progress;
+                    }
                     const statusText = document.getElementById('status-text');
                     const progressBarBg = document.getElementById('progress-bar-bg');
-                    if (statusText) statusText.textContent = `Stahuji... ${data.progress}%`;
-                    if (progressBarBg) progressBarBg.style.width = `${data.progress}%`;
+                    if (statusText) statusText.textContent = `Stahuji... ${currentMaxProgress}%`;
+                    if (progressBarBg) progressBarBg.style.width = `${currentMaxProgress}%`;
                 }
 
                 // Still processing, poll again after 2 seconds
@@ -138,6 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.classList.add('hidden');
         downloadLink.classList.remove('hidden');
         downloadLink.href = downloadUrl;
+
+        // Clear input field on success
+        document.getElementById('video-url').value = '';
 
         downloadLink.addEventListener('click', () => {
             setTimeout(resetUI, 3000);
