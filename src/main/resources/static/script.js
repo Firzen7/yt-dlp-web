@@ -14,6 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentMaxProgress = 0;
 
+    // Fetch and display app version
+    fetch('/api/version')
+        .then(res => res.json())
+        .then(data => {
+            const versionEl = document.getElementById('app-version');
+            if (versionEl && data.version) {
+                versionEl.textContent = `v${data.version}`;
+            }
+        }).catch(err => console.error('Failed to fetch version', err));
+
     // Logout
     logoutBtn.addEventListener('click', async (e) => {
         e.preventDefault();
