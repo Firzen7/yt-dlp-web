@@ -46,6 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.classList.add('hidden');
         downloadLink.classList.add('hidden');
         errorMessage.classList.add('hidden');
+
+        // Reset progress bar and text
+        const progressBarBg = document.getElementById('progress-bar-bg');
+        if (progressBarBg) progressBarBg.style.width = '0%';
+        const statusText = document.getElementById('status-text');
+        if (statusText) statusText.textContent = 'Zpracovávám...';
     };
 
     // Form submission
@@ -110,8 +116,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Backend error: ", data.error);
                 showError();
             } else {
+                // Update progress if available
+                if (data.progress !== undefined && data.progress !== null) {
+                    const statusText = document.getElementById('status-text');
+                    const progressBarBg = document.getElementById('progress-bar-bg');
+                    if (statusText) statusText.textContent = `Stahuji... ${data.progress}%`;
+                    if (progressBarBg) progressBarBg.style.width = `${data.progress}%`;
+                }
+
                 // Still processing, poll again after 2 seconds
-                setTimeout(() => pollStatus(taskId), 2000);
+                // Use a faster poll interval (1 second) when we have a progress bar to make it feel smoother
+                setTimeout(() => pollStatus(taskId), 1000);
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -132,6 +147,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const showError = () => {
         statusMessage.classList.add('hidden');
         errorMessage.classList.remove('hidden');
+
+        // Reset progress bar just in case
+        const progressBarBg = document.getElementById('progress-bar-bg');
+        if (progressBarBg) progressBarBg.style.width = '0%';
+        const statusText = document.getElementById('status-text');
+        if (statusText) statusText.textContent = 'Zpracovávám...';
 
         setTimeout(() => {
             resetUI();
