@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Přihlášení | Stahovač Videa</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .login-input {
+            width: 100%;
+            height: 55px;
+            background-color: var(--primary-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 0 20px;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-family: var(--font-main);
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .login-input:focus {
+            border-color: #b030ff;
+            box-shadow: 0 0 10px rgba(176, 48, 255, 0.3);
+        }
+
+        .login-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .login-btn {
+            width: 100%;
+            height: 55px;
+            border-radius: 12px;
+            background: var(--primary-gradient);
+            color: white;
+            font-family: var(--font-main);
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(176, 48, 255, 0.4);
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(176, 48, 255, 0.6);
+        }
+
+        .flash-message {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.5);
+            color: #ff3b30;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-effects">
+        <div class="glow-orb purple"></div>
+        <div class="glow-orb blue"></div>
+    </div>
+
+    <header class="navbar">
+        <div class="logo">
+            <i class="fa-solid fa-circle-down"></i> STAHUJ
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="glass-card neon-border" style="max-width: 450px;">
+            <h1 class="title neon-text" style="font-size: 2rem;">Přihlášení</h1>
+
+            <div id="flash-message" class="flash-message" style="display: none;"></div>
+
+            <form id="login-form" style="width: 100%;">
+                <input type="text" name="username" id="username" class="login-input"
+                    placeholder="Uživatelské jméno" required autofocus>
+                <input type="password" name="password" id="password" class="login-input"
+                    placeholder="Heslo" required>
+
+                <button type="submit" class="login-btn">
+                    PŘIHLÁSIT SE <i class="fa-solid fa-arrow-right-to-bracket" style="margin-left: 10px;"></i>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const flash = document.getElementById('flash-message');
+            flash.style.display = 'none';
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    flash.textContent = data.error || 'Nesprávné jméno nebo heslo.';
+                    flash.style.display = 'block';
+                }
+            } catch (err) {
+                flash.textContent = 'Chyba připojení k serveru.';
+                flash.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+
+</html>
