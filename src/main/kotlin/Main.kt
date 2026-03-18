@@ -58,8 +58,9 @@ fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, progressCallbac
                 .find(line)
                 ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
 
-            if(tag == outTag)
-            progressCallback(percent)
+            if(tag == outTag) {
+                progressCallback(percent)
+            }
         }
     }
 
