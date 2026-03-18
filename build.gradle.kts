@@ -15,6 +15,10 @@ application {
     mainClass.set("net.firzen.web.MainKt")
 }
 
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
+}
+
 val generateBuildConfig = tasks.register("generateBuildConfig") {
     val outputDir = layout.buildDirectory.dir("generated/buildconfig")
     inputs.property("version", version)
