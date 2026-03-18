@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.2.20"
+    kotlin("plugin.serialization") version "2.2.20"
     id("io.ktor.plugin") version "3.4.1"
 }
 
@@ -56,6 +57,8 @@ dependencies {
     val ktor_version = "3.4.1"
     implementation("io.ktor:ktor-server-netty:$ktor_version")
     implementation("io.ktor:ktor-server-status-pages:$ktor_version")
+    implementation("io.ktor:ktor-server-sessions:$ktor_version")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     // Konfig - simple configuration file API for Kotlin, https://github.com/npryce/konfig, Apache 2.0 license
     implementation("com.natpryce:konfig:1.6.10.0")
