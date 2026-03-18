@@ -14,6 +14,20 @@ fun String.isValidUrl(): Boolean {
     }
 }
 
+fun String.sanitizeVideoUrl(): String {
+    Logger.i("sanitizeVideoUrl()")
+    return try {
+        val parsed = Url(this)
+        val builder = URLBuilder(parsed)
+        builder.parameters.remove("list")
+        builder.parameters.remove("start_radio")
+        builder.parameters.remove("index")
+        builder.build().toString()
+    } catch (_: Exception) {
+        this
+    }
+}
+
 suspend fun RoutingCall.respondJson(json: String, status: HttpStatusCode = HttpStatusCode.OK) {
     Logger.i("respondJson($json)")
     respondText(json, ContentType.Application.Json, status)

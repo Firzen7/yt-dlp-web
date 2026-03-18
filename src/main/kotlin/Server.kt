@@ -91,8 +91,10 @@ fun startServer() {
 
             post("/api/download") {
                 val body = JSONObject(call.receiveText())
-                val url = body.optString("url", "")
+                val rawInputUrl = body.optString("url", "")
                 val format = body.optString("format", "video")
+
+                val url = rawInputUrl.sanitizeVideoUrl()
 
                 if (url.isBlank()) {
                     return@post call.respondJson(
@@ -216,6 +218,11 @@ fun startServer() {
                 call.respondFile(file)
             }
 
+            // --- Version API ---
+            get("/api/version") {
+                call.respondJson("""{"version": "${BuildConfig.VERSION}"}""")
+            }
+
             // --- Protected index: redirect to login if not authenticated ---
 
             get("/") {
@@ -250,10 +257,9 @@ fun downloadAudio(rawUrl: String, progressCallback: (Double?) -> Unit = {}) {
  * Downloads media using yt-dlp as an external process.
  * Returns the exit code of the process.
  */
-fun downloadMedia(
-    rawUrl: String, outputDir: String, audioOnly: Boolean = false,
-    progressCallback: (Double?) -> Unit = {}
-): Int {
+fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
+                  progressCallback: (Double?) -> Unit = {}): Int {
+
     Logger.i("downloadMedia()")
 
     val dir = File(outputDir)
@@ -276,10 +282,7 @@ fun downloadMedia(
     }
 }
 
-fun downloadMedia(
-    url: Url, outputDir: File, audioOnly: Boolean,
-    progressCallback: (Double?) -> Unit
-): Int {
+fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, progressCallback: (Double?) -> Unit): Int {
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
     val errorTag = "ERR"
@@ -287,9 +290,6 @@ fun downloadMedia(
     fun BufferedReader.consumeLines(tag: String): kotlinx.coroutines.Job {
         return CoroutineScope(Dispatchers.IO).launch {
             forEachLine { line ->
-                // Stream yt-dlp output to our console logger for robust tracking
-                Logger.d("[$tag] $line")
-                
                 val percent = Regex("""\d+(\.\d+)?%""")
                     .find(line)
                     ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
