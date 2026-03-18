@@ -79,7 +79,7 @@ fun main(args: Array<String>) {
 
                 try {
                     userManager.createUser(username, password)
-                    println("User '$username' created successfully.")
+                    println("User $username created successfully.")
                 } catch (e: Exception) {
                     println("Failed to create user: ${e.message}")
                 }
