@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.2.20"
+    id("io.ktor.plugin") version "3.4.1"
 }
 
 group = "net.firzen.web"
@@ -7,6 +8,10 @@ version = "1.0"
 
 repositories {
     mavenCentral()
+}
+
+application {
+    mainClass.set("net.firzen.web.MainKt")
 }
 
 val generateBuildConfig = tasks.register("generateBuildConfig") {
@@ -31,6 +36,12 @@ val generateBuildConfig = tasks.register("generateBuildConfig") {
 
 sourceSets.main {
     java.srcDir(generateBuildConfig)
+}
+
+ktor {
+    fatJar {
+        archiveFileName.set("yt-dlp-web-v$version.jar")
+    }
 }
 
 dependencies {
