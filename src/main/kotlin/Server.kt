@@ -104,7 +104,7 @@ fun startServer() {
                 }
 
                 val taskId = UUID.randomUUID().toString()
-                Logger.i("Received download request. Task ID: \$taskId, URL: \$url, Format: \$format")
+                Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
                 tasks[taskId] = DownloadTask(status = "processing")
 
                 // Run download in background
@@ -282,7 +282,8 @@ fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
     }
 }
 
-fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, progressCallback: (Double?) -> Unit): Int {
+fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean,
+                  progressCallback: (Double?) -> Unit): Int {
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
     val errorTag = "ERR"

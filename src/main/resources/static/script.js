@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logout-btn');
 
     let currentMaxProgress = 0;
+    let currentTaskId = null;
 
     // Fetch and display app version
     fetch('/api/version')
@@ -25,24 +26,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(err => console.error('Failed to fetch version', err));
 
     // Logout
-    logoutBtn.addEventListener('click', async (e) => {
+    logoutBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
         await fetch('/api/logout', { method: 'POST' });
         window.location.href = '/login.html';
     });
 
     // Paste button functionality
-    pasteBtn.addEventListener('click', async () => {
+    pasteBtn?.addEventListener('click', async () => {
         try {
             const text = await navigator.clipboard.readText();
             urlInput.value = text;
         } catch (err) {
-            console.error('Failed to read clipboard contents: ', err);
+            console.error('Clipboard API read failed (likely due to HTTP security context): ', err);
+            alert("Chyba: Váš prohlížeč blokuje automatické čtení schránky bez HTTPS. Prosím, vložte odkaz ručně (podržením a vložením).");
         }
     });
 
     // Toggle switch functionality for styling
-    formatToggle.addEventListener('change', (e) => {
+    formatToggle?.addEventListener('change', (e) => {
         if (e.target.checked) {
             videoLabel.classList.remove('glow-text');
             mp3Label.classList.add('glow-text');
@@ -68,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Form submission
-    form.addEventListener('submit', async (e) => {
+    form?.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         errorMessage.classList.add('hidden');
@@ -112,10 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            const taskId = data.task_id;
+            currentTaskId = data.task_id;
 
             // Poll for status
-            pollStatus(taskId);
+            pollStatus(currentTaskId);
 
         } catch (error) {
             console.error('Error starting download:', error);
@@ -138,6 +140,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 showDownload(data.download_url);
             } else if (data.status === 'error') {
                 console.error("Backend error: ", data.error);
+                if (data.error) {
+                    errorMessage.textContent = data.error;
+                } else {
+                    errorMessage.textContent = 'Při stahování došlo k chybě.';
+                }
                 showError();
             } else {
                 // Update progress if available
