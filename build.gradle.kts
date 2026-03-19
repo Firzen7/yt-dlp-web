@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "1.1"
+version = "1.2"
 
 repositories {
     mavenCentral()
@@ -75,5 +75,5 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(17)
 }
