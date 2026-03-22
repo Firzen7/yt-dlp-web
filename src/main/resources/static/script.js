@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const submitBtn = document.getElementById('submit-btn');
     const statusMessage = document.getElementById('status-message');
-    const downloadLink = document.getElementById('download-link');
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
@@ -71,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetUI = () => {
         submitBtn.classList.remove('hidden');
         statusMessage.classList.add('hidden');
-        downloadLink.classList.add('hidden');
         errorMessage.classList.add('hidden');
 
         // Reset progress bar and text
@@ -105,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show loading state
         submitBtn.classList.add('hidden');
         statusMessage.classList.remove('hidden');
-        downloadLink.classList.add('hidden');
         errorMessage.classList.add('hidden');
 
         try {
@@ -182,16 +179,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const showDownload = (downloadUrl) => {
-        statusMessage.classList.add('hidden');
-        downloadLink.classList.remove('hidden');
-        downloadLink.href = downloadUrl;
+        // Change status text to indicate completion
+        const statusText = document.getElementById('status-text');
+        const progressBarBg = document.getElementById('progress-bar-bg');
+        
+        if (statusText) statusText.textContent = 'Hotovo! Ukládám...';
+        if (progressBarBg) progressBarBg.style.width = '100%';
 
         // Clear input field on success
         document.getElementById('video-url').value = '';
 
-        downloadLink.addEventListener('click', () => {
-            setTimeout(resetUI, 3000);
-        }, { once: true });
+        // Trigger automatic download
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = '';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Reset UI after a few seconds
+        setTimeout(resetUI, 4000);
     };
 
     const showError = () => {
