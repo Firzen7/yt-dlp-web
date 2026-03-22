@@ -87,6 +87,15 @@ fun startServer() {
                 call.respondJson("""{"ok": true}""")
             }
 
+            get("/api/user") {
+                val session = call.sessions.get<UserSession>()
+                if (session != null) {
+                    call.respondJson("""{"username": "${session.username}"}""")
+                } else {
+                    call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
+                }
+            }
+
             // --- Download API (auth required) ---
 
             post("/api/download") {
