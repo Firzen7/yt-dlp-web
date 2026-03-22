@@ -309,6 +309,11 @@ input:checked + .slider:before {
     box-shadow: 0 0 10px #b030ff;
 }
 
+input:disabled + .slider {
+    cursor: default;
+    opacity: 0.5;
+}
+
 /* Action Button */
 .action-container {
     width: 100%;

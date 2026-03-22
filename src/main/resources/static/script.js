@@ -72,6 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.classList.add('hidden');
         errorMessage.classList.add('hidden');
 
+        const formatToggleEl = document.getElementById('format-toggle');
+        if (formatToggleEl) formatToggleEl.disabled = false;
+
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
         if (progressBarBg) progressBarBg.style.width = '0%';
@@ -104,6 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.classList.add('hidden');
         statusMessage.classList.remove('hidden');
         errorMessage.classList.add('hidden');
+
+        const formatToggleEl = document.getElementById('format-toggle');
+        if (formatToggleEl) formatToggleEl.disabled = true;
 
         try {
             const response = await fetch('/api/download', {
@@ -164,7 +170,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     const statusText = document.getElementById('status-text');
                     const progressBarBg = document.getElementById('progress-bar-bg');
-                    if (statusText) statusText.textContent = `Stahuji... ${currentMaxProgress}%`;
+
+                    if (statusText) {
+                        if (currentMaxProgress >= 100) {
+                            const isMp3 = document.getElementById('format-toggle').checked;
+                            statusText.textContent = isMp3 ? 'Konvertuji do mp3 ...' : 'Dokončuji ...';
+                        } else {
+                            statusText.textContent = `Stahuji... ${currentMaxProgress}%`;
+                        }
+                    }
                     if (progressBarBg) progressBarBg.style.width = `${currentMaxProgress}%`;
                 }
 
@@ -182,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Change status text to indicate completion
         const statusText = document.getElementById('status-text');
         const progressBarBg = document.getElementById('progress-bar-bg');
-        
+
         if (statusText) statusText.textContent = 'Hotovo! Ukládám...';
         if (progressBarBg) progressBarBg.style.width = '100%';
 
