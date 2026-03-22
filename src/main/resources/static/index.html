@@ -21,7 +21,8 @@
         <div class="logo">
             <i class="fa-solid fa-circle-down"></i> STAHUJ
         </div>
-        <div class="user-actions">
+        <div class="user-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+            <div id="logged-in-user" style="color: var(--text-muted); font-size: 0.85rem;"></div>
             <a href="#" id="logout-btn">Odhlásit se <i class="fa-solid fa-arrow-right-from-bracket"
                     style="margin-left: 5px;"></i></a>
         </div>
@@ -33,7 +34,8 @@
 
             <form id="download-form" class="content-wrapper">
                 <div class="input-group">
-                    <input type="url" id="video-url" placeholder="Stiskni CTRL+V pro vložení odkazu videa..." required />
+                    <input type="url" id="video-url" placeholder="Stiskni CTRL+V pro vložení odkazu videa..."
+                        required />
                     <button type="button" class="paste-btn" id="paste-btn" title="Vložit"><i
                             class="fa-regular fa-clipboard"></i></button>
                     <div class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></div>

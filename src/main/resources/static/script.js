@@ -25,6 +25,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }).catch(err => console.error('Failed to fetch version', err));
 
+    // Fetch and display logged-in user
+    fetch('/api/user')
+        .then(res => {
+            if (res.ok) return res.json();
+            throw new Error('Not logged in');
+        })
+        .then(data => {
+            const userEl = document.getElementById('logged-in-user');
+            if (userEl && data.username) {
+                userEl.innerHTML = `Přihlášen jako: <strong style="color: var(--text-main);">${data.username}</strong>`;
+            }
+        }).catch(err => console.error('Failed to fetch user', err));
+
     // Logout
     logoutBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
