@@ -20,6 +20,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.Serializable
+import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
 
@@ -86,26 +87,32 @@ private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
     val username = body.optString("username", "")
     val password = body.optString("password", "")
 
-    PersistentLogger
-
     if (userManager.validateUser(username, password)) {
         call.sessions.set(UserSession(username))
         call.respondJson("""{"ok": true}""")
+
+        PersistentLogger.logAction(LogLevel.INFO, username, "Successful login")
     } else {
         call.respondJson(
             """{"error": "Nesprávné jméno nebo heslo."}""",
             HttpStatusCode.Unauthorized
         )
+
+        PersistentLogger.logAction(LogLevel.WARNING, UNKNOWN_USER, "Login failed (user: $username)")
     }
 }
 
 private suspend fun performLogout(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
     call.sessions.clear<UserSession>()
     call.respondJson("""{"ok": true}""")
+
+    PersistentLogger.logAction(LogLevel.INFO, session?.username, "Logout")
 }
 
 private suspend fun provideUserInfo(call: RoutingCall) {
     val session = call.sessions.get<UserSession>()
+
     if (session != null) {
         call.respondJson("""{"username": "${session.username}"}""")
     } else {
@@ -114,6 +121,13 @@ private suspend fun provideUserInfo(call: RoutingCall) {
 }
 
 private suspend fun performDownload(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if(session?.username == null) {
+        Logger.e("User not logged in!")
+        PersistentLogger.logAction(LogLevel.WARNING, UNKNOWN_USER, "Non-logged user attempt to download")
+        return call.respondJson("""{"error": "User not logged in!"}""", HttpStatusCode.BadRequest)
+    }
+
     val body = JSONObject(call.receiveText())
     val rawInputUrl = body.optString("url", "")
     val format = body.optString("format", "video")
@@ -121,14 +135,13 @@ private suspend fun performDownload(call: RoutingCall) {
     val url = rawInputUrl.sanitizeVideoUrl()
 
     if (url.isBlank()) {
-        return call.respondJson(
-            """{"error": "URL is required"}""",
-            HttpStatusCode.BadRequest
-        )
+        return call.respondJson("""{"error": "URL is required"}""", HttpStatusCode.BadRequest)
     }
 
     val taskId = UUID.randomUUID().toString()
     Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
+    PersistentLogger.logAction(LogLevel.INFO, session.username, "Started $format download of $url")
+
     tasks[taskId] = DownloadTask(status = "processing")
 
     // Run download in background
@@ -157,16 +170,22 @@ private suspend fun performDownload(call: RoutingCall) {
                             status = "completed",
                             filePath = latestFile.absolutePath
                         )
+
+                        PersistentLogger.logAction(LogLevel.INFO, session.username, "Completed $format download of $url")
                     }
                 } else {
-                    Logger.w("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
+                    Logger.e("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
+                    PersistentLogger.logAction(LogLevel.ERROR, session.username, "Downloaded file not found for (format: $format, url: $url)")
+
                     tasks[taskId] = DownloadTask(
                         status = "error",
                         error = "Download completed but file not found"
                     )
                 }
             } else {
-                Logger.w("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
+                Logger.e("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
+                PersistentLogger.logAction(LogLevel.ERROR, session.username, "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url)")
+
                 tasks[taskId] = DownloadTask(
                     status = "error",
                     error = "yt-dlp exited with code $exitCode"
@@ -174,6 +193,8 @@ private suspend fun performDownload(call: RoutingCall) {
             }
         } catch (e: Exception) {
             Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
+            PersistentLogger.logAction(LogLevel.ERROR, session.username, "Exception during download! (msg: ${e.message}, format: $format, url: $url)")
+
             tasks[taskId] = DownloadTask(
                 status = "error",
                 error = e.message ?: "Unknown error"
@@ -213,11 +234,12 @@ private suspend fun reportTaskStatus(call: RoutingCall) {
 }
 
 private suspend fun provideDownloadedFile(call: RoutingCall) {
-    call.sessions.get<UserSession>()
-        ?: return call.respondJson(
-            """{"error": "Unauthorized"}""",
-            HttpStatusCode.Unauthorized
-        )
+    val session = call.sessions.get<UserSession>()
+
+    session ?: return call.respondJson(
+        """{"error": "Unauthorized"}""",
+        HttpStatusCode.Unauthorized
+    )
 
     val taskId = call.parameters["taskId"] ?: ""
     val task = tasks[taskId]
@@ -228,11 +250,15 @@ private suspend fun provideDownloadedFile(call: RoutingCall) {
 
     val file = File(task.filePath)
     if (!file.exists()) {
-        Logger.w("Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!")
+        Logger.e("Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!")
+        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Failed to serve file! (${file.absolutePath} - File not found)")
+
         return call.respondText("File not found", status = HttpStatusCode.NotFound)
     }
 
     Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
+    PersistentLogger.logAction(LogLevel.INFO, session.username, "Starting file download: ${file.absolutePath}")
+
     call.response.header(
         HttpHeaders.ContentDisposition,
         ContentDisposition.Attachment.withParameter(
