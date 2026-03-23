@@ -35,7 +35,6 @@ private val tasks = ConcurrentHashMap<String, DownloadTask>()
 
 fun startServer() {
     Logger.i("startServer()")
-    println("Yt-dlp-web is starting ...")
 
     val userManager = UserManager(File(USERS_FILE))
 
@@ -64,186 +63,14 @@ fun startServer() {
         }
 
         routing {
-            // --- Auth API ---
-
-            post("/api/login") {
-                val body = JSONObject(call.receiveText())
-                val username = body.optString("username", "")
-                val password = body.optString("password", "")
-
-                if (userManager.validateUser(username, password)) {
-                    call.sessions.set(UserSession(username))
-                    call.respondJson("""{"ok": true}""")
-                } else {
-                    call.respondJson(
-                        """{"error": "Nesprávné jméno nebo heslo."}""",
-                        HttpStatusCode.Unauthorized
-                    )
-                }
-            }
-
-            post("/api/logout") {
-                call.sessions.clear<UserSession>()
-                call.respondJson("""{"ok": true}""")
-            }
-
-            get("/api/user") {
-                val session = call.sessions.get<UserSession>()
-                if (session != null) {
-                    call.respondJson("""{"username": "${session.username}"}""")
-                } else {
-                    call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
-                }
-            }
-
-            // --- Download API (auth required) ---
-
-            post("/api/download") {
-                val body = JSONObject(call.receiveText())
-                val rawInputUrl = body.optString("url", "")
-                val format = body.optString("format", "video")
-
-                val url = rawInputUrl.sanitizeVideoUrl()
-
-                if (url.isBlank()) {
-                    return@post call.respondJson(
-                        """{"error": "URL is required"}""",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-
-                val taskId = UUID.randomUUID().toString()
-                Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
-                tasks[taskId] = DownloadTask(status = "processing")
-
-                // Run download in background
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val audioOnly = format == "mp3"
-                        val taskDir = File(DOWNLOAD_DIRECTORY, taskId)
-                        if (!taskDir.exists()) taskDir.mkdirs()
-                        
-                        val exitCode = downloadMedia(url, taskDir.absolutePath, audioOnly) { percent ->
-                            val currentTask = tasks[taskId]
-                            if (currentTask != null) {
-                                tasks[taskId] = currentTask.copy(progress = percent)
-                            }
-                        }
-
-                        if (exitCode == 0) {
-                            // Find the downloaded file inside the unique task directory
-                            val latestFile = taskDir.listFiles()?.firstOrNull { it.isFile }
-
-                            if (latestFile != null) {
-                                Logger.i("yt-dlp finished for taskId=$taskId. File resolved to: ${latestFile.absolutePath}")
-                                val currentTask = tasks[taskId]
-                                if (currentTask != null) {
-                                    tasks[taskId] = currentTask.copy(
-                                        status = "completed",
-                                        filePath = latestFile.absolutePath
-                                    )
-                                }
-                            } else {
-                                Logger.w("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
-                                tasks[taskId] = DownloadTask(
-                                    status = "error",
-                                    error = "Download completed but file not found"
-                                )
-                            }
-                        } else {
-                            Logger.w("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
-                            tasks[taskId] = DownloadTask(
-                                status = "error",
-                                error = "yt-dlp exited with code $exitCode"
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
-                        tasks[taskId] = DownloadTask(
-                            status = "error",
-                            error = e.message ?: "Unknown error"
-                        )
-                    }
-                }
-
-                call.respondJson("""{"task_id": "$taskId"}""")
-            }
-
-            get("/api/status/{taskId}") {
-                call.sessions.get<UserSession>()
-                    ?: return@get call.respondJson(
-                        """{"error": "Unauthorized"}""",
-                        HttpStatusCode.Unauthorized
-                    )
-
-                val taskId = call.parameters["taskId"] ?: ""
-                val task = tasks[taskId]
-                    ?: return@get call.respondJson(
-                        """{"error": "Task not found"}""",
-                        HttpStatusCode.NotFound
-                    )
-
-                when (task.status) {
-                    "completed" -> call.respondJson(
-                        """{"status": "completed", "download_url": "/api/file/$taskId"}"""
-                    )
-                    else -> {
-                        val obj = JSONObject()
-                        obj.put("status", task.status)
-                        if (task.error != null) obj.put("error", task.error)
-                        if (task.progress != null) obj.put("progress", task.progress)
-                        call.respondJson(obj.toString())
-                    }
-                }
-            }
-
-            get("/api/file/{taskId}") {
-                call.sessions.get<UserSession>()
-                    ?: return@get call.respondJson(
-                        """{"error": "Unauthorized"}""",
-                        HttpStatusCode.Unauthorized
-                    )
-
-                val taskId = call.parameters["taskId"] ?: ""
-                val task = tasks[taskId]
-
-                if (task == null || task.status != "completed" || task.filePath == null) {
-                    return@get call.respondText("File not ready", status = HttpStatusCode.BadRequest)
-                }
-
-                val file = File(task.filePath)
-                if (!file.exists()) {
-                    Logger.w("Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!")
-                    return@get call.respondText("File not found", status = HttpStatusCode.NotFound)
-                }
-
-                Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
-                call.response.header(
-                    HttpHeaders.ContentDisposition,
-                    ContentDisposition.Attachment.withParameter(
-                        ContentDisposition.Parameters.FileName, file.name
-                    ).toString()
-                )
-                call.respondFile(file)
-            }
-
-            // --- Version API ---
-            get("/api/version") {
-                call.respondJson("""{"version": "${BuildConfig.VERSION}"}""")
-            }
-
-            // --- Protected index: redirect to login if not authenticated ---
-
-            get("/") {
-                val session = call.sessions.get<UserSession>()
-                if (session == null) {
-                    call.respondRedirect("/login.html")
-                } else {
-                    call.respondRedirect("/index.html")
-                }
-            }
-
-            // --- Static files ---
+            post("/api/login") { performLogin(userManager, call) }
+            post("/api/logout") { performLogout(call) }
+            get("/api/user") { provideUserInfo(call) }
+            post("/api/download") { performDownload(call) }
+            get("/api/status/{taskId}") { reportTaskStatus(call) }
+            get("/api/file/{taskId}") { provideDownloadedFile(call) }
+            get("/api/version") { provideVersion(call) }
+            get("/") { provideWebpage(call) }
 
             staticResources("/", "static")
         }
@@ -252,14 +79,176 @@ fun startServer() {
     }.start(wait = true)
 }
 
-fun downloadVideo(rawUrl: String, progressCallback: (Double?) -> Unit = {}) {
-    Logger.i("downloadVideo()")
-    downloadMedia(rawUrl, DOWNLOAD_DIRECTORY, false, progressCallback)
+private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
+    val body = JSONObject(call.receiveText())
+    val username = body.optString("username", "")
+    val password = body.optString("password", "")
+
+    if (userManager.validateUser(username, password)) {
+        call.sessions.set(UserSession(username))
+        call.respondJson("""{"ok": true}""")
+    } else {
+        call.respondJson(
+            """{"error": "Nesprávné jméno nebo heslo."}""",
+            HttpStatusCode.Unauthorized
+        )
+    }
 }
 
-fun downloadAudio(rawUrl: String, progressCallback: (Double?) -> Unit = {}) {
-    Logger.i("downloadAudio()")
-    downloadMedia(rawUrl, DOWNLOAD_DIRECTORY, true, progressCallback)
+private suspend fun performLogout(call: RoutingCall) {
+    call.sessions.clear<UserSession>()
+    call.respondJson("""{"ok": true}""")
+}
+
+private suspend fun provideUserInfo(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session != null) {
+        call.respondJson("""{"username": "${session.username}"}""")
+    } else {
+        call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
+    }
+}
+
+private suspend fun performDownload(call: RoutingCall) {
+    val body = JSONObject(call.receiveText())
+    val rawInputUrl = body.optString("url", "")
+    val format = body.optString("format", "video")
+
+    val url = rawInputUrl.sanitizeVideoUrl()
+
+    if (url.isBlank()) {
+        return call.respondJson(
+            """{"error": "URL is required"}""",
+            HttpStatusCode.BadRequest
+        )
+    }
+
+    val taskId = UUID.randomUUID().toString()
+    Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
+    tasks[taskId] = DownloadTask(status = "processing")
+
+    // Run download in background
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val audioOnly = format == "mp3"
+            val taskDir = File(DOWNLOAD_DIRECTORY, taskId)
+            if (!taskDir.exists()) taskDir.mkdirs()
+
+            val exitCode = downloadMedia(url, taskDir.absolutePath, audioOnly) { percent ->
+                val currentTask = tasks[taskId]
+                if (currentTask != null) {
+                    tasks[taskId] = currentTask.copy(progress = percent)
+                }
+            }
+
+            if (exitCode == 0) {
+                // Find the downloaded file inside the unique task directory
+                val latestFile = taskDir.listFiles()?.firstOrNull { it.isFile }
+
+                if (latestFile != null) {
+                    Logger.i("yt-dlp finished for taskId=$taskId. File resolved to: ${latestFile.absolutePath}")
+                    val currentTask = tasks[taskId]
+                    if (currentTask != null) {
+                        tasks[taskId] = currentTask.copy(
+                            status = "completed",
+                            filePath = latestFile.absolutePath
+                        )
+                    }
+                } else {
+                    Logger.w("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
+                    tasks[taskId] = DownloadTask(
+                        status = "error",
+                        error = "Download completed but file not found"
+                    )
+                }
+            } else {
+                Logger.w("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
+                tasks[taskId] = DownloadTask(
+                    status = "error",
+                    error = "yt-dlp exited with code $exitCode"
+                )
+            }
+        } catch (e: Exception) {
+            Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
+            tasks[taskId] = DownloadTask(
+                status = "error",
+                error = e.message ?: "Unknown error"
+            )
+        }
+    }
+
+    call.respondJson("""{"task_id": "$taskId"}""")
+}
+
+private suspend fun reportTaskStatus(call: RoutingCall) {
+    call.sessions.get<UserSession>()
+        ?: return call.respondJson(
+            """{"error": "Unauthorized"}""",
+            HttpStatusCode.Unauthorized
+        )
+
+    val taskId = call.parameters["taskId"] ?: ""
+    val task = tasks[taskId]
+        ?: return call.respondJson(
+            """{"error": "Task not found"}""",
+            HttpStatusCode.NotFound
+        )
+
+    when (task.status) {
+        "completed" -> call.respondJson(
+            """{"status": "completed", "download_url": "/api/file/$taskId"}"""
+        )
+        else -> {
+            val obj = JSONObject()
+            obj.put("status", task.status)
+            if (task.error != null) obj.put("error", task.error)
+            if (task.progress != null) obj.put("progress", task.progress)
+            call.respondJson(obj.toString())
+        }
+    }
+}
+
+private suspend fun provideDownloadedFile(call: RoutingCall) {
+    call.sessions.get<UserSession>()
+        ?: return call.respondJson(
+            """{"error": "Unauthorized"}""",
+            HttpStatusCode.Unauthorized
+        )
+
+    val taskId = call.parameters["taskId"] ?: ""
+    val task = tasks[taskId]
+
+    if (task == null || task.status != "completed" || task.filePath == null) {
+        return call.respondText("File not ready", status = HttpStatusCode.BadRequest)
+    }
+
+    val file = File(task.filePath)
+    if (!file.exists()) {
+        Logger.w("Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!")
+        return call.respondText("File not found", status = HttpStatusCode.NotFound)
+    }
+
+    Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
+    call.response.header(
+        HttpHeaders.ContentDisposition,
+        ContentDisposition.Attachment.withParameter(
+            ContentDisposition.Parameters.FileName, file.name
+        ).toString()
+    )
+    call.respondFile(file)
+}
+
+private suspend fun provideVersion(call: RoutingCall) {
+    call.respondJson("""{"version": "${BuildConfig.VERSION}"}""")
+}
+
+private suspend fun provideWebpage(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session == null) {
+        call.respondRedirect("/login.html")
+    } else {
+        call.respondRedirect("/index.html")
+    }
 }
 
 /**
@@ -297,7 +286,7 @@ fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean,
     val outTag = "OUT"
     val errorTag = "ERR"
 
-    fun BufferedReader.consumeLines(tag: String): kotlinx.coroutines.Job {
+    fun BufferedReader.consumeLines(tag: String) : kotlinx.coroutines.Job {
         return CoroutineScope(Dispatchers.IO).launch {
             forEachLine { line ->
                 val percent = Regex("""\d+(\.\d+)?%""")
