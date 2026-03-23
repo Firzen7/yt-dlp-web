@@ -1,5 +1,6 @@
 package net.firzen.web
 
+import net.firzen.web.logging.Logger
 import org.bouncycastle.crypto.generators.SCrypt
 import java.io.File
 import java.security.MessageDigest

@@ -20,6 +20,8 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.Serializable
+import net.firzen.web.logging.Logger
+import net.firzen.web.logging.PersistentLogger
 
 @Serializable
 data class UserSession(val username: String)
@@ -75,7 +77,7 @@ fun startServer() {
             staticResources("/", "static")
         }
 
-        println("Started yt-dlp-web version ${BuildConfig.VERSION}")
+        println("yt-dlp-web version ${BuildConfig.VERSION} started")
     }.start(wait = true)
 }
 
@@ -83,6 +85,8 @@ private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
     val body = JSONObject(call.receiveText())
     val username = body.optString("username", "")
     val password = body.optString("password", "")
+
+    PersistentLogger
 
     if (userManager.validateUser(username, password)) {
         call.sessions.set(UserSession(username))

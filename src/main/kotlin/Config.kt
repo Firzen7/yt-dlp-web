@@ -7,6 +7,7 @@ import com.natpryce.konfig.Key
 import com.natpryce.konfig.intType
 import com.natpryce.konfig.overriding
 import com.natpryce.konfig.stringType
+import net.firzen.web.logging.Logger
 import java.io.File
 import kotlin.text.lowercase
 
@@ -22,6 +23,7 @@ val SERVER_PORT = conf[Key("server.port", intType)]
 val SERVER_HOSTNAME = conf[Key("server.hostname", stringType)]
 
 val DOWNLOAD_DIRECTORY = conf[Key("fs.download_directory", stringType)]
+val LOG_DIRECTORY = conf[Key("fs.log_directory", stringType)]
 
 val USERS_FILE = try {
     conf[Key("auth.users_file", stringType)]

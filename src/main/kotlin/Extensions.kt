@@ -3,6 +3,9 @@ package net.firzen.web
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import net.firzen.web.logging.Logger
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 
 fun String.isValidUrl(): Boolean {
     Logger.i("isValidUrl()")
@@ -33,3 +36,6 @@ suspend fun RoutingCall.respondJson(json: String, status: HttpStatusCode = HttpS
     respondText(json, ContentType.Application.Json, status)
 }
 
+fun DateTime.dateTimeString() : String {
+    return DateTimeFormat.forPattern("d.M.yyyy HH:mm").print(this)
+}
