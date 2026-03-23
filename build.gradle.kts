@@ -69,6 +69,9 @@ dependencies {
 
     // Bouncy Castle - cryptographic library for scrypt password hashing, MIT license
     implementation("org.bouncycastle:bcprov-jdk18on:1.80")
+
+    // Joda Time
+    implementation("joda-time:joda-time:2.14.1")
 }
 
 tasks.test {

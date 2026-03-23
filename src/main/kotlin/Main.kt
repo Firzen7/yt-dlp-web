@@ -1,5 +1,6 @@
 package net.firzen.web
 
+import net.firzen.web.logging.Logger
 import java.io.File
 
 fun main(args: Array<String>) {
@@ -23,6 +24,11 @@ fun main(args: Array<String>) {
                 val username = console.readLine("Enter username: ")
                 if (username.isNullOrBlank()) {
                     println("Username cannot be empty")
+                    return
+                }
+
+                if(username == UNKNOWN_USER) {
+                    println("This username is not allowed")
                     return
                 }
 
