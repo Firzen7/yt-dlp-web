@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const pasteBtn = document.getElementById('paste-btn');
     const urlInput = document.getElementById('video-url');
     const formatToggle = document.getElementById('format-toggle');
     const videoLabel = document.querySelector('.video-label');
@@ -42,17 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         await fetch('/api/logout', { method: 'POST' });
         window.location.href = '/login.html';
-    });
-
-    // Paste button functionality
-    pasteBtn?.addEventListener('click', async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            urlInput.value = text;
-        } catch (err) {
-            console.error('Clipboard API read failed (likely due to HTTP security context): ', err);
-            alert("Chyba: Váš prohlížeč blokuje automatické čtení schránky bez HTTPS. Prosím, vložte odkaz ručně (podržením a vložením).");
-        }
     });
 
     // Toggle switch functionality for styling
