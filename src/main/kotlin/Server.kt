@@ -179,7 +179,7 @@ private suspend fun performDownload(call: RoutingCall) {
 
                     tasks[taskId] = DownloadTask(
                         status = "error",
-                        error = "Download completed but file not found"
+                        error = "Staženo, ale soubor nenalezen"
                     )
                 }
             } else {
@@ -188,7 +188,7 @@ private suspend fun performDownload(call: RoutingCall) {
 
                 tasks[taskId] = DownloadTask(
                     status = "error",
-                    error = "yt-dlp exited with code $exitCode"
+                    error = "Něco se pokazilo (yt-dlp: $exitCode)"
                 )
             }
         } catch (e: Exception) {
@@ -197,7 +197,7 @@ private suspend fun performDownload(call: RoutingCall) {
 
             tasks[taskId] = DownloadTask(
                 status = "error",
-                error = e.message ?: "Unknown error"
+                error = e.message ?: "Neznámá chyba"
             )
         }
     }
