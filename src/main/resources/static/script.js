@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             const userEl = document.getElementById('logged-in-user');
             if (userEl && data.username) {
-                userEl.innerHTML = `Přihlášen jako: <strong style="color: var(--text-main);">${data.username}</strong>`;
+                userEl.innerHTML = `Přihlášen(a) jako: <strong style="color: var(--text-main);">${data.username}</strong>`;
             }
         }).catch(err => console.error('Failed to fetch user', err));
 
