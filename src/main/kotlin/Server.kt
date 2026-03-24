@@ -74,6 +74,8 @@ fun startServer() {
             get("/api/file/{taskId}") { provideDownloadedFile(call) }
             get("/api/version") { provideVersion(call) }
             get("/") { provideWebpage(call) }
+            get("/index.html") { provideProtectedIndex(call) }
+            get("/login.html") { provideProtectedLogin(call) }
 
             staticResources("/", "static")
         }
@@ -278,6 +280,34 @@ private suspend fun provideWebpage(call: RoutingCall) {
         call.respondRedirect("/login.html")
     } else {
         call.respondRedirect("/index.html")
+    }
+}
+
+private suspend fun provideProtectedIndex(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session == null) {
+        call.respondRedirect("/login.html")
+    } else {
+        val text = UserSession::class.java.classLoader.getResource("static/index.html")?.readText()
+        if (text != null) {
+            call.respondText(text, ContentType.Text.Html)
+        } else {
+            call.respondText("Not found", status = HttpStatusCode.NotFound)
+        }
+    }
+}
+
+private suspend fun provideProtectedLogin(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session != null) {
+        call.respondRedirect("/index.html")
+    } else {
+        val text = UserSession::class.java.classLoader.getResource("static/login.html")?.readText()
+        if (text != null) {
+            call.respondText(text, ContentType.Text.Html)
+        } else {
+            call.respondText("Not found", status = HttpStatusCode.NotFound)
+        }
     }
 }
 
