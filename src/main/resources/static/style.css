@@ -201,7 +201,7 @@ nav a:hover {
     background-color: var(--primary-bg);
     border: none;
     border-radius: 12px;
-    padding: 0 20px;
+    padding: 0 50px 0 20px;
     color: var(--text-main);
     font-size: 1rem;
     font-family: var(--font-main);
@@ -211,6 +211,80 @@ nav a:hover {
 #video-url::placeholder {
     color: var(--text-muted);
 }
+
+.settings-btn {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.settings-btn:hover {
+    color: var(--text-main);
+}
+
+.filename-group {
+    width: 100%;
+    position: relative;
+    height: 55px;
+    transition: all 0.3s ease;
+}
+
+.filename-group.hidden {
+    display: none;
+}
+
+#custom-filename {
+    width: 100%;
+    height: 100%;
+    background-color: var(--primary-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0 20px;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-family: var(--font-main);
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#custom-filename:focus {
+    border-color: #00c3ff;
+    box-shadow: 0 0 10px rgba(0, 195, 255, 0.3);
+}
+
+#custom-filename::placeholder {
+    color: var(--text-muted);
+}
+
+.filename-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--primary-bg);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    gap: 10px;
+    z-index: 5;
+}
+
+.filename-loader.hidden {
+    display: none;
+}
+
 
 
 
