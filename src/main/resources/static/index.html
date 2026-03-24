@@ -35,6 +35,16 @@
                 <div class="input-group">
                     <input type="url" id="video-url" placeholder="Stiskni CTRL+V pro vložení odkazu videa..."
                         required />
+                    <button type="button" class="settings-btn" id="edit-filename-btn" title="Upravit název videa">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
+
+                <div class="filename-group hidden" id="filename-group">
+                    <input type="text" id="custom-filename" placeholder="Vlastní název videa..." />
+                    <div class="filename-loader hidden" id="filename-loader">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Načítám název...
+                    </div>
                 </div>
 
                 <div class="toggle-container">

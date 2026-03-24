@@ -76,12 +76,53 @@ fun startServer() {
             get("/") { provideWebpage(call) }
             get("/index.html") { provideProtectedIndex(call) }
             get("/login.html") { provideProtectedLogin(call) }
+            post("/api/title") { fetchVideoTitle(call) }
 
             staticResources("/", "static")
         }
 
         println("yt-dlp-web version ${BuildConfig.VERSION} started")
     }.start(wait = true)
+}
+
+private suspend fun fetchVideoTitle(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session == null) {
+        return call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
+    }
+
+    val body = JSONObject(call.receiveText())
+    val rawUrl = body.optString("url", "")
+    val url = rawUrl.sanitizeVideoUrl()
+
+    if (url.isBlank()) {
+        PersistentLogger.logAction(LogLevel.WARNING, session.username, "Attempted to get video title from blank URL")
+        return call.respondJson("""{"error": "URL is required"}""", HttpStatusCode.BadRequest)
+    }
+
+    Logger.i("Getting title for url: $url")
+    val title = withContext(Dispatchers.IO) {
+        try {
+            val process = ProcessBuilder("yt-dlp", "--get-title", url).start()
+            val output = process.inputStream.bufferedReader().readText().trim()
+            process.waitFor()
+            output
+        } catch (e: Exception) {
+            Logger.e("Failed to get title: ${e.message}")
+            null
+        }
+    }
+
+    if (title.isNullOrEmpty()) {
+        call.respondJson("""{"error": "Failed to get title"}""", HttpStatusCode.InternalServerError)
+        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Failed to get title of $url")
+    } else {
+        val obj = JSONObject()
+        obj.put("title", title)
+        call.respondJson(obj.toString())
+
+        PersistentLogger.logAction(LogLevel.INFO, session.username, "Title of $url determined as \"$title\"")
+    }
 }
 
 private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
@@ -133,6 +174,7 @@ private suspend fun performDownload(call: RoutingCall) {
     val body = JSONObject(call.receiveText())
     val rawInputUrl = body.optString("url", "")
     val format = body.optString("format", "video")
+    val customFilename = body.optString("filename", "")
 
     val url = rawInputUrl.sanitizeVideoUrl()
 
@@ -142,7 +184,7 @@ private suspend fun performDownload(call: RoutingCall) {
 
     val taskId = UUID.randomUUID().toString()
     Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
-    PersistentLogger.logAction(LogLevel.INFO, session.username, "Started $format download of $url")
+    PersistentLogger.logAction(LogLevel.INFO, session.username, "Started $format download of $url (custom name: $customFilename)")
 
     tasks[taskId] = DownloadTask(status = "processing")
 
@@ -153,7 +195,8 @@ private suspend fun performDownload(call: RoutingCall) {
             val taskDir = File(DOWNLOAD_DIRECTORY, taskId)
             if (!taskDir.exists()) taskDir.mkdirs()
 
-            val exitCode = downloadMedia(url, taskDir.absolutePath, audioOnly) { percent ->
+            val customName = customFilename.takeIf { it.isNotBlank() }
+            val exitCode = downloadMedia(url, taskDir.absolutePath, audioOnly, customName) { percent ->
                 val currentTask = tasks[taskId]
                 if (currentTask != null) {
                     tasks[taskId] = currentTask.copy(progress = percent)
@@ -173,11 +216,11 @@ private suspend fun performDownload(call: RoutingCall) {
                             filePath = latestFile.absolutePath
                         )
 
-                        PersistentLogger.logAction(LogLevel.INFO, session.username, "Completed $format download of $url")
+                        PersistentLogger.logAction(LogLevel.INFO, session.username, "Completed $format download of $url (custom name: $customFilename)")
                     }
                 } else {
                     Logger.e("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
-                    PersistentLogger.logAction(LogLevel.ERROR, session.username, "Downloaded file not found for (format: $format, url: $url)")
+                    PersistentLogger.logAction(LogLevel.ERROR, session.username, "Downloaded file not found for (format: $format, url: $url, custom name: $customFilename)")
 
                     tasks[taskId] = DownloadTask(
                         status = "error",
@@ -186,7 +229,7 @@ private suspend fun performDownload(call: RoutingCall) {
                 }
             } else {
                 Logger.e("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
-                PersistentLogger.logAction(LogLevel.ERROR, session.username, "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url)")
+                PersistentLogger.logAction(LogLevel.ERROR, session.username, "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url, custom name: $customFilename)")
 
                 tasks[taskId] = DownloadTask(
                     status = "error",
@@ -195,7 +238,7 @@ private suspend fun performDownload(call: RoutingCall) {
             }
         } catch (e: Exception) {
             Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
-            PersistentLogger.logAction(LogLevel.ERROR, session.username, "Exception during download! (msg: ${e.message}, format: $format, url: $url)")
+            PersistentLogger.logAction(LogLevel.ERROR, session.username, "Exception during download! (msg: ${e.message}, format: $format, url: $url, custom name: $customFilename)")
 
             tasks[taskId] = DownloadTask(
                 status = "error",
@@ -259,7 +302,7 @@ private suspend fun provideDownloadedFile(call: RoutingCall) {
     }
 
     Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
-    PersistentLogger.logAction(LogLevel.INFO, session.username, "Starting file download: ${file.absolutePath}")
+    PersistentLogger.logAction(LogLevel.INFO, session.username, "Serving file: ${file.absolutePath}")
 
     call.response.header(
         HttpHeaders.ContentDisposition,
@@ -315,7 +358,7 @@ private suspend fun provideProtectedLogin(call: RoutingCall) {
  * Downloads media using yt-dlp as an external process.
  * Returns the exit code of the process.
  */
-fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
+fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false, customFilename: String? = null,
                   progressCallback: (Double?) -> Unit = {}): Int {
 
     Logger.i("downloadMedia()")
@@ -333,14 +376,14 @@ fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
     }
 
     if ((dir.isDirectory || dir.mkdirs()) && dir.canWrite() && dir.canRead()) {
-        return downloadMedia(Url(rawUrl), dir, audioOnly, progressCallback)
+        return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback)
     } else {
         println("Error! $dir is not usable directory!")
         return -1
     }
 }
 
-fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean,
+fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
                   progressCallback: (Double?) -> Unit): Int {
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
@@ -362,6 +405,10 @@ fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean,
 
     return kotlinx.coroutines.runBlocking {
         val commandList = mutableListOf("yt-dlp", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
+        if (customFilename != null) {
+            commandList.add("-o")
+            commandList.add("$customFilename.%(ext)s")
+        }
         if (audioOnly) {
             commandList.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
         }

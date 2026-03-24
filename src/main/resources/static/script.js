@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlInput = document.getElementById('video-url');
+    const editFilenameBtn = document.getElementById('edit-filename-btn');
+    const filenameGroup = document.getElementById('filename-group');
+    const customFilenameInput = document.getElementById('custom-filename');
+    const filenameLoader = document.getElementById('filename-loader');
     const formatToggle = document.getElementById('format-toggle');
     const videoLabel = document.querySelector('.video-label');
     const mp3Label = document.querySelector('.mp3-label');
@@ -43,6 +47,47 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/login.html';
     });
 
+    // Custom filename functionality
+    editFilenameBtn?.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+        if (!url) {
+            alert('Nejprve zadejte odkaz na video.');
+            return;
+        }
+
+        filenameGroup.classList.toggle('hidden');
+        if (!filenameGroup.classList.contains('hidden')) {
+            filenameLoader.classList.remove('hidden');
+            customFilenameInput.value = '';
+            try {
+                const response = await fetch('/api/title', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                if (!response.ok) throw new Error('Could not retrieve title');
+
+                const data = await response.json();
+                if (data.title) {
+                    customFilenameInput.value = data.title;
+                }
+            } catch (err) {
+                console.error('Failed to get title:', err);
+                customFilenameInput.value = 'Nepodařilo se načíst název';
+            } finally {
+                filenameLoader.classList.add('hidden');
+            }
+        } else {
+            customFilenameInput.value = '';
+        }
+    });
+
     // Toggle switch functionality for styling
     formatToggle?.addEventListener('change', (e) => {
         if (e.target.checked) {
@@ -63,6 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const formatToggleEl = document.getElementById('format-toggle');
         if (formatToggleEl) formatToggleEl.disabled = false;
 
+        filenameGroup?.classList.add('hidden');
+        if (customFilenameInput) customFilenameInput.value = '';
+
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
         if (progressBarBg) progressBarBg.style.width = '0%';
@@ -79,6 +127,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const url = document.getElementById('video-url').value.trim();
         const format = document.getElementById('format-toggle').checked ? 'mp3' : 'video';
+
+        let customFilename = null;
+        if (!filenameGroup?.classList.contains('hidden') && customFilenameInput) {
+            customFilename = customFilenameInput.value.trim();
+        }
 
         if (!url) {
             errorMessage.textContent = 'Prosím, vložte URL adresu videa.';
@@ -100,12 +153,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (formatToggleEl) formatToggleEl.disabled = true;
 
         try {
+            const bodyData = { url, format };
+            if (customFilename) {
+                bodyData.filename = customFilename;
+            }
+
             const response = await fetch('/api/download', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url, format })
+                body: JSON.stringify(bodyData)
             });
 
             if (response.status === 401) {
