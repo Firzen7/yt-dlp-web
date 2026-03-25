@@ -23,6 +23,7 @@ import kotlinx.serialization.Serializable
 import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
+import okhttp3.OkHttpClient
 
 @Serializable
 data class UserSession(val username: String)
@@ -83,46 +84,6 @@ fun startServer() {
 
         println("yt-dlp-web version ${BuildConfig.VERSION} started")
     }.start(wait = true)
-}
-
-private suspend fun fetchVideoTitle(call: RoutingCall) {
-    val session = call.sessions.get<UserSession>()
-    if (session == null) {
-        return call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
-    }
-
-    val body = JSONObject(call.receiveText())
-    val rawUrl = body.optString("url", "")
-    val url = rawUrl.sanitizeVideoUrl()
-
-    if (url.isBlank()) {
-        PersistentLogger.logAction(LogLevel.WARNING, session.username, "Attempted to get video title from blank URL")
-        return call.respondJson("""{"error": "URL is required"}""", HttpStatusCode.BadRequest)
-    }
-
-    Logger.i("Getting title for url: $url")
-    val title = withContext(Dispatchers.IO) {
-        try {
-            val process = ProcessBuilder("yt-dlp", "--get-title", url).start()
-            val output = process.inputStream.bufferedReader().readText().trim()
-            process.waitFor()
-            output
-        } catch (e: Exception) {
-            Logger.e("Failed to get title: ${e.message}")
-            null
-        }
-    }
-
-    if (title.isNullOrEmpty()) {
-        call.respondJson("""{"error": "Failed to get title"}""", HttpStatusCode.InternalServerError)
-        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Failed to get title of $url")
-    } else {
-        val obj = JSONObject()
-        obj.put("title", title)
-        call.respondJson(obj.toString())
-
-        PersistentLogger.logAction(LogLevel.INFO, session.username, "Title of $url determined as \"$title\"")
-    }
 }
 
 private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
@@ -354,12 +315,72 @@ private suspend fun provideProtectedLogin(call: RoutingCall) {
     }
 }
 
+private suspend fun fetchVideoTitle(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session == null) {
+        return call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
+    }
+
+    val body = JSONObject(call.receiveText())
+    val rawUrl = body.optString("url", "")
+    val url = rawUrl.sanitizeVideoUrl()
+
+    if (url.isBlank()) {
+        PersistentLogger.logAction(LogLevel.WARNING, session.username, "Attempted to get video title from blank URL")
+        return call.respondJson("""{"error": "URL is required"}""", HttpStatusCode.BadRequest)
+    }
+
+    Logger.i("Getting title for url: $url")
+    val title = fetchVideoTitle(url)
+
+    if (title.isNullOrEmpty()) {
+        call.respondJson("""{"error": "Failed to get title"}""", HttpStatusCode.InternalServerError)
+        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Failed to get title of $url")
+    } else {
+        val obj = JSONObject()
+        obj.put("title", title)
+        call.respondJson(obj.toString())
+
+        PersistentLogger.logAction(LogLevel.INFO, session.username, "Title of $url determined as \"$title\"")
+    }
+}
+
+private suspend fun fetchVideoTitle(url: String) : String? {
+    Logger.i("Getting title for url: $url")
+    return withContext(Dispatchers.IO) {
+        try {
+            if(url.startsWithAny("https://www.youtube.com", "https://m.youtube.com", "https://youtube.com")) {
+                val jsonUrl = "https://www.youtube.com/oembed?url=$url&format=json"
+
+                val rawJson = downloadFile(jsonUrl, OkHttpClient())
+                val json = JSONObject(rawJson)
+
+                if(json.has("title")) {
+                    return@withContext json.getString("title")
+                }
+                else {
+                    return@withContext null
+                }
+            }
+            else {
+                val process = ProcessBuilder("yt-dlp", "--get-title", url).start()
+                val output = process.inputStream.bufferedReader().readText().trim()
+                process.waitFor()
+                return@withContext output
+            }
+        } catch (e: Exception) {
+            Logger.e("Failed to get title: ${e.message}")
+            return@withContext null
+        }
+    }
+}
+
 /**
  * Downloads media using yt-dlp as an external process.
  * Returns the exit code of the process.
  */
-fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false, customFilename: String? = null,
-                  progressCallback: (Double?) -> Unit = {}): Int {
+private fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
+                          customFilename: String? = null, progressCallback: (Double?) -> Unit = {}): Int {
 
     Logger.i("downloadMedia()")
 
@@ -383,8 +404,9 @@ fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
     }
 }
 
-fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
-                  progressCallback: (Double?) -> Unit): Int {
+private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
+                          progressCallback: (Double?) -> Unit): Int {
+
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
     val errorTag = "ERR"
