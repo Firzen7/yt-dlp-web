@@ -135,7 +135,7 @@ private suspend fun performDownload(call: RoutingCall) {
     val body = JSONObject(call.receiveText())
     val rawInputUrl = body.optString("url", "")
     val format = body.optString("format", "video")
-    val customFilename = body.optString("filename", "")
+    val customFilename = body.optString("filename", "").replace(Regex("[<>:\"/\\\\|?*\\x00-\\x1F]"), "")
 
     val url = rawInputUrl.sanitizeVideoUrl()
 

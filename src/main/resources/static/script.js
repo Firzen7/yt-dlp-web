@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
+    // Prevent restricted characters in filename
+    customFilenameInput?.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
+    });
+
     let currentMaxProgress = 0;
     let currentTaskId = null;
 
@@ -75,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await response.json();
                 if (data.title) {
-                    customFilenameInput.value = data.title;
+                    customFilenameInput.value = data.title.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
                 }
             } catch (err) {
                 console.error('Failed to get title:', err);
