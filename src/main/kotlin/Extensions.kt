@@ -39,3 +39,7 @@ suspend fun RoutingCall.respondJson(json: String, status: HttpStatusCode = HttpS
 fun DateTime.dateTimeString() : String {
     return DateTimeFormat.forPattern("d.M.yyyy HH:mm").print(this)
 }
+
+fun String.startsWithAny(vararg prefixes: String) : Boolean {
+    return prefixes.any { this.startsWith(it) }
+}

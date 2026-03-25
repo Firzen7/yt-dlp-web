@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "1.7"
+version = "1.8"
 
 repositories {
     mavenCentral()
@@ -72,6 +72,10 @@ dependencies {
 
     // Joda Time
     implementation("joda-time:joda-time:2.14.1")
+
+    // OkHTTP, see: https://github.com/square/okhttp, Apache 2.0 license
+    // general network communication
+    implementation("com.squareup.okhttp3:okhttp:5.2.1")
 }
 
 tasks.test {

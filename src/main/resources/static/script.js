@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(a);
 
         // Reset UI after a few seconds
-        setTimeout(resetUI, 4000);
+        setTimeout(resetUI, 1000);
     };
 
     const showError = () => {
