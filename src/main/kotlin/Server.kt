@@ -265,11 +265,10 @@ private suspend fun provideDownloadedFile(call: RoutingCall) {
     Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
     PersistentLogger.logAction(LogLevel.INFO, session.username, "Serving file: ${file.absolutePath}")
 
+    val encodedName = java.net.URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")
     call.response.header(
         HttpHeaders.ContentDisposition,
-        ContentDisposition.Attachment.withParameter(
-            ContentDisposition.Parameters.FileName, file.name
-        ).toString()
+        "attachment; filename=\"${file.name.replace("\"", "\\\"")}\"; filename*=UTF-8''$encodedName"
     )
     call.respondFile(file)
 }
@@ -350,6 +349,7 @@ private suspend fun fetchVideoTitle(url: String) : String? {
     return withContext(Dispatchers.IO) {
         try {
             if(url.startsWithAny("https://www.youtube.com", "https://m.youtube.com", "https://youtube.com")) {
+                // faster way to get video title for Youtube-only videos
                 val jsonUrl = "https://www.youtube.com/oembed?url=$url&format=json"
 
                 val rawJson = downloadFile(jsonUrl, OkHttpClient())
@@ -363,6 +363,7 @@ private suspend fun fetchVideoTitle(url: String) : String? {
                 }
             }
             else {
+                // for all other videos, generic yt-dlp feature is used (it is slower)
                 val process = ProcessBuilder("yt-dlp", "--get-title", url).start()
                 val output = process.inputStream.bufferedReader().readText().trim()
                 process.waitFor()
