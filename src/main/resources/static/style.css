@@ -225,8 +225,14 @@ nav a:hover {
     transition: color 0.3s;
 }
 
-.settings-btn:hover {
+.settings-btn:hover:not(:disabled) {
     color: var(--text-main);
+}
+
+.settings-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .filename-group {
@@ -296,6 +302,11 @@ nav a:hover {
     font-weight: 600;
     font-size: 1.1rem;
     letter-spacing: 1px;
+}
+
+.toggle-container.disabled {
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 .toggle-label {

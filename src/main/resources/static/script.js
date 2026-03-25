@@ -108,6 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const formatToggleEl = document.getElementById('format-toggle');
         if (formatToggleEl) formatToggleEl.disabled = false;
 
+        const settingsBtn = document.getElementById('edit-filename-btn');
+        if (settingsBtn) settingsBtn.disabled = false;
+
+        const toggleContainer = document.querySelector('.toggle-container');
+        if (toggleContainer) toggleContainer.classList.remove('disabled');
+
         filenameGroup?.classList.add('hidden');
         if (customFilenameInput) customFilenameInput.value = '';
 
@@ -151,6 +157,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formatToggleEl = document.getElementById('format-toggle');
         if (formatToggleEl) formatToggleEl.disabled = true;
+
+        const settingsBtn = document.getElementById('edit-filename-btn');
+        if (settingsBtn) settingsBtn.disabled = true;
+
+        const toggleContainer = document.querySelector('.toggle-container');
+        if (toggleContainer) toggleContainer.classList.add('disabled');
 
         try {
             const bodyData = { url, format };
