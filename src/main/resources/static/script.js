@@ -120,7 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toggleContainer) toggleContainer.classList.remove('disabled');
 
         filenameGroup?.classList.add('hidden');
-        if (customFilenameInput) customFilenameInput.value = '';
+        if (customFilenameInput) {
+            customFilenameInput.value = '';
+            customFilenameInput.disabled = false;
+        }
+        if (urlInput) urlInput.disabled = false;
 
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
@@ -168,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleContainer = document.querySelector('.toggle-container');
         if (toggleContainer) toggleContainer.classList.add('disabled');
+
+        if (customFilenameInput) customFilenameInput.disabled = true;
+        if (urlInput) urlInput.disabled = true;
 
         try {
             const bodyData = { url, format };
