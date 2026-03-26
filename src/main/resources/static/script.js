@@ -54,6 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Custom filename functionality
     editFilenameBtn?.addEventListener('click', async () => {
+        if (!urlInput.checkValidity()) {
+            urlInput.reportValidity();
+            return;
+        }
+
         const url = urlInput.value.trim();
         if (!url) {
             alert('Nejprve zadejte odkaz na video.');
