@@ -24,6 +24,8 @@ val SERVER_HOSTNAME = conf[Key("server.hostname", stringType)]
 
 val DOWNLOAD_DIRECTORY = conf[Key("fs.download_directory", stringType)]
 val LOG_DIRECTORY = conf[Key("fs.log_directory", stringType)]
+val JS_RUNTIME_TYPE = conf[Key("fs.js_runtime_type", stringType)]
+val JS_RUNTIME_PATH = conf[Key("fs.js_runtime_path", stringType)]
 
 val USERS_FILE = try {
     conf[Key("auth.users_file", stringType)]
