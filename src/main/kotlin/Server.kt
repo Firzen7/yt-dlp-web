@@ -157,7 +157,7 @@ private suspend fun performDownload(call: RoutingCall) {
             if (!taskDir.exists()) taskDir.mkdirs()
 
             val customName = customFilename.takeIf { it.isNotBlank() }
-            val exitCode = downloadMedia(url, taskDir.absolutePath, audioOnly, customName) { percent ->
+            val (exitCode, output) = downloadMedia(url, taskDir.absolutePath, audioOnly, customName) { percent ->
                 val currentTask = tasks[taskId]
                 if (currentTask != null) {
                     tasks[taskId] = currentTask.copy(progress = percent)
@@ -190,7 +190,7 @@ private suspend fun performDownload(call: RoutingCall) {
                 }
             } else {
                 Logger.e("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
-                PersistentLogger.logAction(LogLevel.ERROR, session.username, "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url, custom name: $customFilename)")
+                PersistentLogger.logAction(LogLevel.ERROR, session.username, "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url, custom name: $customFilename)\n--- YT-DLP OUTPUT ---\n$output---------------------")
 
                 tasks[taskId] = DownloadTask(
                     status = "error",
@@ -378,10 +378,10 @@ private suspend fun fetchVideoTitle(url: String) : String? {
 
 /**
  * Downloads media using yt-dlp as an external process.
- * Returns the exit code of the process.
+ * Returns the exit code of the process and the gathered log output.
  */
 private fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
-                          customFilename: String? = null, progressCallback: (Double?) -> Unit = {}): Int {
+                          customFilename: String? = null, progressCallback: (Double?) -> Unit = {}): Pair<Int, String> {
 
     Logger.i("downloadMedia()")
 
@@ -389,32 +389,36 @@ private fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean 
 
     if (!rawUrl.isValidUrl()) {
         println("Error! Invalid url: $rawUrl")
-        return -1
+        return Pair(-1, "Error! Invalid url: $rawUrl")
     }
 
     if (rawUrl.contains("playlist")) {
         println("Error! Cannot download playlists!")
-        return -1
+        return Pair(-1, "Error! Cannot download playlists!")
     }
 
     if ((dir.isDirectory || dir.mkdirs()) && dir.canWrite() && dir.canRead()) {
         return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback)
     } else {
         println("Error! $dir is not usable directory!")
-        return -1
+        return Pair(-1, "Error! $dir is not usable directory!")
     }
 }
 
 private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
-                          progressCallback: (Double?) -> Unit): Int {
+                          progressCallback: (Double?) -> Unit): Pair<Int, String> {
 
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
     val errorTag = "ERR"
+    val fullLog = StringBuilder()
 
     fun BufferedReader.consumeLines(tag: String) : kotlinx.coroutines.Job {
         return CoroutineScope(Dispatchers.IO).launch {
             forEachLine { line ->
+                synchronized(fullLog) {
+                    fullLog.appendLine("[$tag] $line")
+                }
                 val percent = Regex("""\d+(\.\d+)?%""")
                     .find(line)
                     ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
@@ -427,7 +431,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
     }
 
     return kotlinx.coroutines.runBlocking {
-        val commandList = mutableListOf("yt-dlp", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
+        val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
         if (customFilename != null) {
             commandList.add("-o")
             commandList.add("$customFilename.%(ext)s")
@@ -453,6 +457,6 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
         outJob.join()
         errJob.join()
 
-        return@runBlocking exitCode
+        return@runBlocking Pair(exitCode, fullLog.toString())
     }
 }
