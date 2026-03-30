@@ -15,6 +15,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
+    // Handle base64 encoded URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const encodedUrl = urlParams.get('url');
+    if (encodedUrl) {
+        try {
+            const base64Str = encodedUrl.replace(/ /g, '+');
+            const decodedUrl = atob(base64Str);
+            if (urlInput) {
+                urlInput.value = decodedUrl;
+            }
+        } catch (e) {
+            console.error('Failed to decode URL parameter:', e);
+        }
+    }
+
     // Toggle clear button visibility
     const toggleClearBtn = () => {
         if (customFilenameInput && customFilenameInput.value.length > 0) {
