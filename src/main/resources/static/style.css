@@ -252,7 +252,7 @@ nav a:hover {
     background-color: var(--primary-bg);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
-    padding: 0 20px;
+    padding: 0 45px 0 20px;
     color: var(--text-main);
     font-size: 0.95rem;
     font-family: var(--font-main);
@@ -288,6 +288,28 @@ nav a:hover {
 }
 
 .filename-loader.hidden {
+    display: none;
+}
+
+.clear-filename-btn {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.3s, opacity 0.3s;
+    z-index: 4;
+}
+
+.clear-filename-btn:hover {
+    color: #ff3b30;
+}
+
+.clear-filename-btn.hidden {
     display: none;
 }
 
