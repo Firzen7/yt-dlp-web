@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const filenameGroup = document.getElementById('filename-group');
     const customFilenameInput = document.getElementById('custom-filename');
     const filenameLoader = document.getElementById('filename-loader');
+    const clearFilenameBtn = document.getElementById('clear-filename-btn');
     const formatToggle = document.getElementById('format-toggle');
     const videoLabel = document.querySelector('.video-label');
     const mp3Label = document.querySelector('.mp3-label');
@@ -14,9 +15,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
+    // Toggle clear button visibility
+    const toggleClearBtn = () => {
+        if (customFilenameInput && customFilenameInput.value.length > 0) {
+            clearFilenameBtn?.classList.remove('hidden');
+        } else {
+            clearFilenameBtn?.classList.add('hidden');
+        }
+    };
+
     // Prevent restricted characters in filename
     customFilenameInput?.addEventListener('input', (e) => {
         e.target.value = e.target.value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
+        toggleClearBtn();
+    });
+
+    // Clear filename button
+    clearFilenameBtn?.addEventListener('click', () => {
+        if (customFilenameInput) {
+            customFilenameInput.value = '';
+            toggleClearBtn();
+            customFilenameInput.focus();
+        }
     });
 
     let currentMaxProgress = 0;
@@ -69,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!filenameGroup.classList.contains('hidden')) {
             filenameLoader.classList.remove('hidden');
             customFilenameInput.value = '';
+            toggleClearBtn();
             try {
                 const response = await fetch('/api/title', {
                     method: 'POST',
@@ -86,15 +107,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 if (data.title) {
                     customFilenameInput.value = data.title.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
+                    toggleClearBtn();
                 }
             } catch (err) {
                 console.error('Failed to get title:', err);
                 customFilenameInput.value = 'Nepodařilo se načíst název';
+                toggleClearBtn();
             } finally {
                 filenameLoader.classList.add('hidden');
             }
         } else {
             customFilenameInput.value = '';
+            toggleClearBtn();
         }
     });
 
@@ -127,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filenameGroup?.classList.add('hidden');
         if (customFilenameInput) {
             customFilenameInput.value = '';
+            toggleClearBtn();
             customFilenameInput.disabled = false;
         }
         if (urlInput) urlInput.disabled = false;
