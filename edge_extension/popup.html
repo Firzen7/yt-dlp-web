@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Downloader Settings</title>
+    <style>
+        body { width: 320px; padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #ffffff; margin: 0; }
+        h3 { margin-top: 0; margin-bottom: 15px; font-weight: 500; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; color: #aaa; }
+        input { width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box; background-color: #222; border: 1px solid #444; color: #fff; border-radius: 4px; }
+        input:focus { outline: none; border-color: #0078d4; }
+        button { width: 100%; padding: 9px; background-color: #0078d4; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: 600; font-size: 14px; transition: background-color 0.2s; }
+        button:hover { background-color: #106ebe; }
+        #status { color: #4CAF50; display: none; margin-top: 10px; font-size: 13px; text-align: center; }
+        .hint { font-size: 11px; color: #888; margin-bottom: 15px; margin-top: -10px; }
+    </style>
+</head>
+<body>
+    <h3>Yout.com Redirector</h3>
+    
+    <label for="url">Downloader Base URL:</label>
+    <input type="url" id="url" placeholder="http://localhost:8080/">
+    <div class="hint">Ensure this points to your yt-dlp web downloader.</div>
+    
+    <button id="save">Save Settings</button>
+    <div id="status">✓ Settings saved successfully</div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
