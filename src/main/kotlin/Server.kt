@@ -25,6 +25,13 @@ import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
 import okhttp3.OkHttpClient
 
+// testing links:_
+// slow audio conversion:
+//   https://www.youtube.com/watch?v=0D3kQ-iDfrw
+// not working without JavaScript:
+//   https://www.youtube.com/watch?v=A8BCEYCg4xI
+//
+
 @Serializable
 data class UserSession(val username: String)
 
@@ -406,7 +413,7 @@ private fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean 
 }
 
 private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
-                          progressCallback: (Double?) -> Unit): Pair<Int, String> {
+                          progressCallback: (Double?) -> Unit) : Pair<Int, String> {
 
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val outTag = "OUT"
@@ -430,14 +437,19 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
         }
     }
 
-    return kotlinx.coroutines.runBlocking {
+    suspend fun runYtDlp(slowAudioConversion: Boolean) : Pair<Int, String> {
         val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
         if (customFilename != null) {
             commandList.add("-o")
             commandList.add("$customFilename.%(ext)s")
         }
         if (audioOnly) {
-            commandList.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
+            if(slowAudioConversion) {
+                commandList.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
+            }
+            else {
+                commandList.addAll(listOf("-f", "bestaudio[ext=m4a]"))
+            }
         }
         commandList.add(url.toString())
 
@@ -457,6 +469,15 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
         outJob.join()
         errJob.join()
 
-        return@runBlocking Pair(exitCode, fullLog.toString())
+        if(audioOnly && exitCode != 0) {
+            return runYtDlp(true)
+        }
+        else {
+            return Pair(exitCode, fullLog.toString())
+        }
+    }
+
+    return kotlinx.coroutines.runBlocking {
+        runYtDlp(false)
     }
 }
