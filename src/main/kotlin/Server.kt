@@ -25,12 +25,16 @@ import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
 import okhttp3.OkHttpClient
 
-// testing links:_
+// testing links:
 // slow audio conversion:
 //   https://www.youtube.com/watch?v=0D3kQ-iDfrw
 // not working without JavaScript:
 //   https://www.youtube.com/watch?v=A8BCEYCg4xI
 //
+// base64 testing:
+//   https://www.youtube.com/watch?v=6uLTGq5SBws
+//   aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj02dUxUR3E1U0J3cw==
+//   http://localhost:8080/index.html?url=aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj02dUxUR3E1U0J3cw==
 
 @Serializable
 data class UserSession(val username: String)
@@ -85,6 +89,7 @@ fun startServer() {
             get("/index.html") { provideProtectedIndex(call) }
             get("/login.html") { provideProtectedLogin(call) }
             post("/api/title") { fetchVideoTitle(call) }
+            post("/api/decode") { decodeBase64Url(call) }
 
             staticResources("/", "static")
         }
@@ -348,6 +353,38 @@ private suspend fun fetchVideoTitle(call: RoutingCall) {
         call.respondJson(obj.toString())
 
         PersistentLogger.logAction(LogLevel.INFO, session.username, "Title of $url determined as \"$title\"")
+    }
+}
+
+private suspend fun decodeBase64Url(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session == null) {
+        return call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
+    }
+
+    val body = JSONObject(call.receiveText())
+    val base64 = body.optString("base64", "")
+
+    if (base64.isBlank()) {
+        PersistentLogger.logAction(LogLevel.WARNING, session.username, "Attempted to decode blank base64 string")
+        return call.respondJson("""{"error": "Base64 string is required"}""", HttpStatusCode.BadRequest)
+    }
+
+    Logger.i("Decoding base64 url: $base64")
+    try {
+        val decodedBytes = java.util.Base64.getDecoder().decode(base64)
+        val decodedUrl = String(decodedBytes, Charsets.UTF_8)
+
+        Logger.i("Successfully decoded base64 URL to: $decodedUrl")
+        PersistentLogger.logAction(LogLevel.INFO, session.username, "Successfully decoded base64 URL to: $decodedUrl")
+
+        val obj = JSONObject()
+        obj.put("url", decodedUrl)
+        call.respondJson(obj.toString())
+    } catch (e: Exception) {
+        Logger.e("Failed to decode base64 string: ${e.message}")
+        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Failed to decode base64 string: $base64")
+        call.respondJson("""{"error": "Invalid base64 string"}""", HttpStatusCode.BadRequest)
     }
 }
 

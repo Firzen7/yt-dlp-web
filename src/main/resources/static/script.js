@@ -335,16 +335,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const encodedUrl = urlParams.get('url');
     if (encodedUrl) {
-        try {
-            const base64Str = encodedUrl.replace(/ /g, '+');
-            const decodedUrl = atob(base64Str);
-            if (urlInput && decodedUrl) {
-                urlInput.value = decodedUrl;
-                // Automatically fetch title and open filename settings
-                editFilenameBtn?.click();
-            }
-        } catch (e) {
-            console.error('Failed to decode URL parameter:', e);
-        }
+        const base64Str = encodedUrl.replace(/ /g, '+');
+        fetch('/api/decode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64: base64Str })
+        })
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login.html';
+                    throw new Error('Not logged in');
+                }
+                if (!res.ok) throw new Error('Failed to decode URL on backend');
+                return res.json();
+            })
+            .then(data => {
+                if (data.url && urlInput) {
+                    urlInput.value = data.url;
+                    // Automatically fetch title and open filename settings
+                    editFilenameBtn?.click();
+                }
+            })
+            .catch(e => {
+                console.error('Failed to decode URL parameter:', e);
+            });
     }
 });
