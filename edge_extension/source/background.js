@@ -1,5 +1,5 @@
-//let downloaderUrl = "https://stahovac.firzen.net/";
-let downloaderUrl = "http://localhost:8080/";
+let downloaderUrl = "https://stahovac.firzen.net/";
+//let downloaderUrl = "http://localhost:8080/";
 
 // Load saved config on startup
 chrome.storage.sync.get(['downloaderUrl'], function (result) {

@@ -116,7 +116,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    window.location.href = '/';
+                    window.location.href = '/' + window.location.search;
                 } else {
                     flash.textContent = data.error || 'Nesprávné jméno nebo heslo.';
                     flash.style.display = 'block';

@@ -35,6 +35,7 @@ import okhttp3.OkHttpClient
 //   https://www.youtube.com/watch?v=6uLTGq5SBws
 //   aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj02dUxUR3E1U0J3cw==
 //   http://localhost:8080/index.html?url=aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj02dUxUR3E1U0J3cw==
+//   http://yout.com/watch?v=L3gOf2XDp8Y
 
 @Serializable
 data class UserSession(val username: String)
@@ -291,10 +292,13 @@ private suspend fun provideVersion(call: RoutingCall) {
 
 private suspend fun provideWebpage(call: RoutingCall) {
     val session = call.sessions.get<UserSession>()
+    val queryString = call.request.queryString()
+    val suffix = if (queryString.isNotEmpty()) "?$queryString" else ""
+
     if (session == null) {
-        call.respondRedirect("/login.html")
+        call.respondRedirect("/login.html$suffix")
     } else {
-        call.respondRedirect("/index.html")
+        call.respondRedirect("/index.html$suffix")
     }
 }
 
