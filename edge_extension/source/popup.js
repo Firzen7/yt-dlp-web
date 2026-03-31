@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (result.downloaderUrl) {
             urlInput.value = result.downloaderUrl;
         } else {
-//            urlInput.value = "https://stahovac.firzen.net/";
-            urlInput.value = "http://localhost:8080/";
+            urlInput.value = "https://stahovac.firzen.net/";
+//            urlInput.value = "http://localhost:8080/";
         }
     });
 
