@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "2.0"
+version = "2.1"
 
 repositories {
     mavenCentral()
@@ -68,9 +68,9 @@ dependencies {
     implementation("com.natpryce:konfig:1.6.10.0")
 
     // Bouncy Castle - cryptographic library for scrypt password hashing, MIT license
-    implementation("org.bouncycastle:bcprov-jdk18on:1.80")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
 
-    // Joda Time
+    // Joda Time, Apache 2.0 license
     implementation("joda-time:joda-time:2.14.1")
 
     // OkHTTP, see: https://github.com/square/okhttp, Apache 2.0 license
