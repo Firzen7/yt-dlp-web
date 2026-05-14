@@ -495,7 +495,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
 
         val exitCode = runProcess(commandList, outputDir, fullLog, progressCallback)
 
-        if(audioOnly && exitCode != 0) {
+        if(audioOnly && exitCode != 0 && !slowAudioConversion) {
             return runYtDlp(true)
         }
         else {
