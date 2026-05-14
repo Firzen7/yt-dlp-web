@@ -20,9 +20,11 @@ suspend fun runProcess(command: List<String>, outputDir: File, fullLog: StringBu
     val errJob = process.errorStream.bufferedReader().consumeLines(ERROR_TAG, fullLog, progressCallback)
 
     try {
-        return withTimeout(PROCESS_TIMEOUT) {
+        return withTimeout(PROCESS_TIMEOUT * 1000) {
             withContext(Dispatchers.IO) {
-                process.waitFor()
+                kotlinx.coroutines.runInterruptible {
+                    process.waitFor()
+                }
             }
         }
     } finally {
@@ -41,7 +43,9 @@ suspend fun Process.await(timeoutMs: Long): Int {
     return try {
         withTimeout(timeoutMs) {
             withContext(Dispatchers.IO) {
-                waitFor()
+                kotlinx.coroutines.runInterruptible {
+                    waitFor()
+                }
             }
         }
     } catch (e: TimeoutCancellationException) {
