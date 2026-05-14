@@ -12,8 +12,10 @@ import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
@@ -429,7 +431,7 @@ private suspend fun fetchVideoTitle(url: String) : String? {
  * Returns the exit code of the process and the gathered log output.
  */
 private fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
-                          customFilename: String? = null, progressCallback: (Double?) -> Unit = {}): Pair<Int, String> {
+                          customFilename: String? = null, progressCallback: (Double?) -> Unit = {}) : Pair<Int, String> {
 
     Logger.i("downloadMedia()")
 
@@ -457,29 +459,13 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
                           progressCallback: (Double?) -> Unit) : Pair<Int, String> {
 
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
-    val outTag = "OUT"
-    val errorTag = "ERR"
     val fullLog = StringBuilder()
 
-    fun BufferedReader.consumeLines(tag: String) : kotlinx.coroutines.Job {
-        return CoroutineScope(Dispatchers.IO).launch {
-            forEachLine { line ->
-                synchronized(fullLog) {
-                    fullLog.appendLine("[$tag] $line")
-                }
-                val percent = Regex("""\d+(\.\d+)?%""")
-                    .find(line)
-                    ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
-
-                if (tag == outTag && percent != null) {
-                    progressCallback(percent)
-                }
-            }
-        }
-    }
-
     suspend fun runYtDlp(slowAudioConversion: Boolean) : Pair<Int, String> {
-        val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
+        val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH",
+            "--downloader-args", "ffmpeg:-timeout 30000000",
+            "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
+
         if (customFilename != null) {
             commandList.add("-o")
             commandList.add("$customFilename.%(ext)s")
@@ -496,19 +482,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
 
         Logger.i("Executing yt-dlp with arguments: ${commandList.joinToString(" ")}")
 
-        val process = ProcessBuilder(commandList)
-            .directory(outputDir)
-            .start()
-
-        val outJob = process.inputStream.bufferedReader().consumeLines(outTag)
-        val errJob = process.errorStream.bufferedReader().consumeLines(errorTag)
-
-        val exitCode = withContext(Dispatchers.IO) {
-            process.waitFor()
-        }
-
-        outJob.join()
-        errJob.join()
+        val exitCode = runProcess(commandList, outputDir, fullLog, progressCallback)
 
         if(audioOnly && exitCode != 0) {
             return runYtDlp(true)
