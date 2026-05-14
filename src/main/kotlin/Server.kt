@@ -12,10 +12,10 @@ import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -158,7 +158,8 @@ private suspend fun performDownload(call: RoutingCall) {
 
     val taskId = UUID.randomUUID().toString()
     Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
-    PersistentLogger.logAction(LogLevel.INFO, session.username, "Started $format download of $url (custom name: $customFilename)")
+    PersistentLogger.logAction(LogLevel.INFO, session.username, "Started $format download of $url" +
+            " (custom name: $customFilename)")
 
     tasks[taskId] = DownloadTask(status = "processing")
 
@@ -190,11 +191,13 @@ private suspend fun performDownload(call: RoutingCall) {
                             filePath = latestFile.absolutePath
                         )
 
-                        PersistentLogger.logAction(LogLevel.INFO, session.username, "Completed $format download of $url (custom name: $customFilename)")
+                        PersistentLogger.logAction(LogLevel.INFO, session.username,
+                            "Completed $format download of $url (custom name: $customFilename)")
                     }
                 } else {
                     Logger.e("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
-                    PersistentLogger.logAction(LogLevel.ERROR, session.username, "Downloaded file not found for (format: $format, url: $url, custom name: $customFilename)")
+                    PersistentLogger.logAction(LogLevel.ERROR, session.username,
+                        "Downloaded file not found for (format: $format, url: $url, custom name: $customFilename)")
 
                     tasks[taskId] = DownloadTask(
                         status = "error",
@@ -203,7 +206,9 @@ private suspend fun performDownload(call: RoutingCall) {
                 }
             } else {
                 Logger.e("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
-                PersistentLogger.logAction(LogLevel.ERROR, session.username, "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url, custom name: $customFilename)\n--- YT-DLP OUTPUT ---\n$output---------------------")
+                PersistentLogger.logAction(LogLevel.ERROR, session.username,
+                    "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url," +
+                            " custom name: $customFilename)\n\n--- YT-DLP OUTPUT ---\n$output---------------------\n")
 
                 tasks[taskId] = DownloadTask(
                     status = "error",
@@ -212,7 +217,9 @@ private suspend fun performDownload(call: RoutingCall) {
             }
         } catch (e: Exception) {
             Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
-            PersistentLogger.logAction(LogLevel.ERROR, session.username, "Exception during download! (msg: ${e.message}, format: $format, url: $url, custom name: $customFilename)")
+            PersistentLogger.logAction(LogLevel.ERROR, session.username,
+                "Exception during download! (msg: ${e.message}, format: $format, url: $url," +
+                        " custom name: $customFilename)")
 
             tasks[taskId] = DownloadTask(
                 status = "error",
@@ -270,7 +277,8 @@ private suspend fun provideDownloadedFile(call: RoutingCall) {
     val file = File(task.filePath)
     if (!file.exists()) {
         Logger.e("Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!")
-        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Failed to serve file! (${file.absolutePath} - File not found)")
+        PersistentLogger.logAction(LogLevel.ERROR, session.username,
+            "Failed to serve file! (${file.absolutePath} - File not found)")
 
         return call.respondText("File not found", status = HttpStatusCode.NotFound)
     }
@@ -413,9 +421,12 @@ private suspend fun fetchVideoTitle(url: String) : String? {
             else {
                 // for all other videos, generic yt-dlp feature is used (it is slower)
                 val process = ProcessBuilder("yt-dlp", "--get-title", url).start()
-                val output = process.inputStream.bufferedReader().readText().trim()
-                process.waitFor()
-                return@withContext output
+                val outputJob = async(Dispatchers.IO) {
+                    process.inputStream.bufferedReader().readText().trim()
+                }
+
+                process.await(PROCESS_TIMEOUT * 1000)
+                return@withContext outputJob.await()
             }
         } catch (e: Exception) {
             Logger.e("Failed to get title: ${e.message}")
@@ -428,8 +439,11 @@ private suspend fun fetchVideoTitle(url: String) : String? {
  * Downloads media using yt-dlp as an external process.
  * Returns the exit code of the process and the gathered log output.
  */
-private fun downloadMedia(rawUrl: String, outputDir: String, audioOnly: Boolean = false,
-                          customFilename: String? = null, progressCallback: (Double?) -> Unit = {}): Pair<Int, String> {
+private fun downloadMedia(rawUrl: String,
+                          outputDir: String,
+                          audioOnly: Boolean = false,
+                          customFilename: String? = null,
+                          progressCallback: (Double?) -> Unit = {}) : Pair<Int, String> {
 
     Logger.i("downloadMedia()")
 
@@ -457,29 +471,12 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
                           progressCallback: (Double?) -> Unit) : Pair<Int, String> {
 
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
-    val outTag = "OUT"
-    val errorTag = "ERR"
     val fullLog = StringBuilder()
 
-    fun BufferedReader.consumeLines(tag: String) : kotlinx.coroutines.Job {
-        return CoroutineScope(Dispatchers.IO).launch {
-            forEachLine { line ->
-                synchronized(fullLog) {
-                    fullLog.appendLine("[$tag] $line")
-                }
-                val percent = Regex("""\d+(\.\d+)?%""")
-                    .find(line)
-                    ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
-
-                if (tag == outTag && percent != null) {
-                    progressCallback(percent)
-                }
-            }
-        }
-    }
-
     suspend fun runYtDlp(slowAudioConversion: Boolean) : Pair<Int, String> {
-        val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH", "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
+        val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH",
+            "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
+
         if (customFilename != null) {
             commandList.add("-o")
             commandList.add("$customFilename.%(ext)s")
@@ -496,19 +493,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
 
         Logger.i("Executing yt-dlp with arguments: ${commandList.joinToString(" ")}")
 
-        val process = ProcessBuilder(commandList)
-            .directory(outputDir)
-            .start()
-
-        val outJob = process.inputStream.bufferedReader().consumeLines(outTag)
-        val errJob = process.errorStream.bufferedReader().consumeLines(errorTag)
-
-        val exitCode = withContext(Dispatchers.IO) {
-            process.waitFor()
-        }
-
-        outJob.join()
-        errJob.join()
+        val exitCode = runProcess(commandList, outputDir, fullLog, progressCallback)
 
         if(audioOnly && exitCode != 0) {
             return runYtDlp(true)

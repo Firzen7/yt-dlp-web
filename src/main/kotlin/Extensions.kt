@@ -3,9 +3,13 @@ package net.firzen.web
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import net.firzen.web.logging.Logger
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import java.io.BufferedReader
 
 fun String.isValidUrl(): Boolean {
     Logger.i("isValidUrl()")
@@ -42,4 +46,23 @@ fun DateTime.dateTimeString() : String {
 
 fun String.startsWithAny(vararg prefixes: String) : Boolean {
     return prefixes.any { this.startsWith(it) }
+}
+
+fun BufferedReader.consumeLines(tag: String, fullLog: StringBuilder,
+                                progressCallback: (Double?) -> Unit) : kotlinx.coroutines.Job {
+
+    return CoroutineScope(Dispatchers.IO).launch {
+        forEachLine { line ->
+            synchronized(fullLog) {
+                fullLog.appendLine("[$tag] $line")
+            }
+            val percent = Regex("""\d+(\.\d+)?%""")
+                .find(line)
+                ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
+
+            if (tag == OUT_TAG && percent != null) {
+                progressCallback(percent)
+            }
+        }
+    }
 }
