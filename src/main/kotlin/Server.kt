@@ -475,6 +475,8 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
 
     suspend fun runYtDlp(slowAudioConversion: Boolean) : Pair<Int, String> {
         val commandList = mutableListOf("yt-dlp", "-v", "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH",
+            "--downloader-args", "ffmpeg:-timeout ${PROCESS_TIMEOUT * 1000000}",
+            "--match-filters", "!is_live",
             "--no-cache-dir", "--no-playlist", "--paths", outputDir.absolutePath)
 
         if (customFilename != null) {
@@ -489,6 +491,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
                 commandList.addAll(listOf("-f", "bestaudio[ext=m4a]"))
             }
         }
+
         commandList.add(url.toString())
 
         Logger.i("Executing yt-dlp with arguments: ${commandList.joinToString(" ")}")
