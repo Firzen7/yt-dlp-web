@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (statusText) {
                         if (currentMaxProgress >= 100) {
                             const isMp3 = document.getElementById('format-toggle').checked;
-                            statusText.textContent = isMp3 ? 'Konvertuji do mp3 ...' : 'Dokončuji ...';
+                            statusText.textContent = isMp3 ? 'Konvertuji na zvuk ...' : 'Dokončuji ...';
                         } else {
                             statusText.textContent = `Stahuji... ${currentMaxProgress}%`;
                         }
