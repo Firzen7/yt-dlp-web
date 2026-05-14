@@ -5,6 +5,7 @@ import com.natpryce.konfig.ConfigurationProperties.Companion.systemProperties
 import com.natpryce.konfig.EnvironmentVariables
 import com.natpryce.konfig.Key
 import com.natpryce.konfig.intType
+import com.natpryce.konfig.longType
 import com.natpryce.konfig.overriding
 import com.natpryce.konfig.stringType
 import net.firzen.web.logging.Logger
@@ -29,6 +30,9 @@ val USERS_FILE = try {
 } catch (_: Exception) {
     "./users.conf"
 }
+
+// [seconds] timeout of child processes
+val PROCESS_TIMEOUT = conf[Key("process.timeout", longType)]
 
 private fun availableConfigPath() : String {
     Logger.i("availableConfigPath()")
