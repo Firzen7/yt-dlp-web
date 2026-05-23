@@ -15,26 +15,26 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
     }
 });
 
-// Intercept navigation to yout.com
+// Intercept navigation to youtub.com
 chrome.webNavigation.onBeforeNavigate.addListener(function (details) {
     if (details.frameId === 0) {
         const url = new URL(details.url);
 
-        if (url.hostname === "yout.com" || url.hostname === "www.yout.com") {
+        if (url.hostname === "youtub.com" || url.hostname === "www.youtub.com") {
             let trueYoutubeUrl = "";
 
-            // Check if it has a ?v= parameter (e.g., yout.com/watch?v=123)
+            // Check if it has a ?v= parameter (e.g., youtub.com/watch?v=123)
             if (url.searchParams.has('v')) {
                 const videoId = url.searchParams.get('v');
                 trueYoutubeUrl = "https://www.youtube.com/watch?v=" + videoId;
             }
-            // Or if the video ID is just the path (e.g., yout.com/123)
+            // Or if the video ID is just the path (e.g., youtub.com/123)
             else {
                 const path = url.pathname.replace(/^\/+/, ''); // Remove leading slashes
                 if (path.length > 0) {
                     trueYoutubeUrl = "https://www.youtube.com/watch?v=" + path;
                 } else {
-                    return; // Just yout.com home page, do nothing
+                    return; // Just youtub.com home page, do nothing
                 }
             }
 
@@ -54,4 +54,4 @@ chrome.webNavigation.onBeforeNavigate.addListener(function (details) {
             chrome.tabs.update(details.tabId, { url: redirectUrl });
         }
     }
-}, { url: [{ hostContains: 'yout.com' }] });
+}, { url: [{ hostContains: 'youtub.com' }] });

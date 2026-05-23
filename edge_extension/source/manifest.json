@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Yout.com Redirector",
+  "name": "Youtub.com Redirector",
   "version": "1.0",
-  "description": "Redirects yout.com video links to the local yt-dlp web downloader.",
+  "description": "Redirects youtub.com video links to the local yt-dlp web downloader.",
   "permissions": [
     "webNavigation",
     "storage"
   ],
   "host_permissions": [
-    "*://*.yout.com/*"
+    "*://*.youtub.com/*"
   ],
   "background": {
     "service_worker": "background.js"
