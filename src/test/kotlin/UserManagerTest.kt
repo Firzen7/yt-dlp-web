@@ -123,4 +123,41 @@ class UserManagerTest {
         assertFalse(manager.validateUser("user1", "pass2"))
         assertFalse(manager.validateUser("user2", "pass3"))
     }
+
+    @Test
+    fun `changePassword updates password successfully`() {
+        val manager = createManager()
+        manager.createUser("testuser", "oldpass")
+
+        assertTrue(manager.validateUser("testuser", "oldpass"))
+
+        manager.changePassword("testuser", "newpass")
+
+        assertFalse(manager.validateUser("testuser", "oldpass"))
+        assertTrue(manager.validateUser("testuser", "newpass"))
+    }
+
+    @Test
+    fun `changePassword throws for non-existent user`() {
+        val manager = createManager()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            manager.changePassword("nonexistent", "newpass")
+        }
+    }
+
+    @Test
+    fun `changePassword only updates target user`() {
+        val manager = createManager()
+        manager.createUser("user1", "pass1")
+        manager.createUser("user2", "pass2")
+
+        manager.changePassword("user1", "newpass1")
+
+        assertTrue(manager.validateUser("user1", "newpass1"))
+        assertFalse(manager.validateUser("user1", "pass1"))
+
+        assertTrue(manager.validateUser("user2", "pass2"))
+    }
 }
+
