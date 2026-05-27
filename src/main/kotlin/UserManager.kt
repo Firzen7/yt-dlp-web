@@ -95,6 +95,43 @@ class UserManager(private val usersFile: File) {
     }
 
     /**
+     * Changes the password for the given user after validating the current password.
+     *
+     * @throws IllegalArgumentException if the user does not exist, the current password is incorrect,
+     *                                  or if the new password is empty
+     */
+    fun changePassword(username: String, oldPassword: String, newPassword: String) {
+        Logger.i("changePassword(with validation)")
+        require(username.isNotBlank()) { "Username must not be blank" }
+        require(newPassword.isNotEmpty()) { "New password must not be empty" }
+
+        synchronized(lock) {
+            if (!validateUser(username, oldPassword)) {
+                throw IllegalArgumentException("Nesprávné aktuální heslo.")
+            }
+
+            val salt = generateSalt()
+            val hash = hashPassword(newPassword, salt)
+            val saltEncoded = String(salt, Charsets.UTF_8)
+            val hashHex = hash.toHexString()
+
+            val newEntryLine = "$username:scrypt:$SCRYPT_N:$SCRYPT_R:$SCRYPT_P\$$saltEncoded\$$hashHex"
+
+            val lines = if (usersFile.exists()) usersFile.readLines() else emptyList()
+            val updatedLines = lines.map { line ->
+                val colonIndex = line.indexOf(':')
+                if (colonIndex >= 0 && line.substring(0, colonIndex) == username) {
+                    newEntryLine
+                } else {
+                    line
+                }
+            }
+
+            usersFile.writeText(updatedLines.joinToString("\n", postfix = "\n"))
+        }
+    }
+
+    /**
      * Validates the provided credentials against the stored users.
      *
      * @return true if the username exists and the password matches

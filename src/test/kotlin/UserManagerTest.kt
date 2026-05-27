@@ -159,5 +159,38 @@ class UserManagerTest {
 
         assertTrue(manager.validateUser("user2", "pass2"))
     }
+
+    @Test
+    fun `changePassword with validation updates password when old password matches`() {
+        val manager = createManager()
+        manager.createUser("user1", "oldpass")
+
+        manager.changePassword("user1", "oldpass", "newpass")
+
+        assertFalse(manager.validateUser("user1", "oldpass"))
+        assertTrue(manager.validateUser("user1", "newpass"))
+    }
+
+    @Test
+    fun `changePassword with validation throws when old password does not match`() {
+        val manager = createManager()
+        manager.createUser("user1", "oldpass")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            manager.changePassword("user1", "wrongpass", "newpass")
+        }
+
+        assertTrue(manager.validateUser("user1", "oldpass"))
+        assertFalse(manager.validateUser("user1", "newpass"))
+    }
+
+    @Test
+    fun `changePassword with validation throws for non-existent user`() {
+        val manager = createManager()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            manager.changePassword("nonexistent", "oldpass", "newpass")
+        }
+    }
 }
 
