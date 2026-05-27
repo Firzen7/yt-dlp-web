@@ -94,6 +94,7 @@ fun startServer() {
             post("/api/title") { fetchVideoTitle(call) }
             post("/api/decode") { decodeBase64Url(call) }
             post("/api/change-password") { handleChangePassword(userManager, call) }
+            post("/api/password-entropy") { handlePasswordEntropy(userManager, call) }
 
             staticResources("/", "static")
         }
@@ -174,6 +175,24 @@ private suspend fun handleChangePassword(userManager: UserManager, call: Routing
             HttpStatusCode.InternalServerError
         )
         PersistentLogger.logAction(LogLevel.ERROR, session.username, "Exception while changing password: ${e.message}")
+    }
+}
+
+private suspend fun handlePasswordEntropy(userManager: UserManager, call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+
+    try {
+        val body = JSONObject(call.receiveText())
+        val password = body.optString("password", "")
+        val entropy = userManager.computeEntropy(password)
+        call.respondJson("""{"entropy": $entropy}""")
+    } catch (_: Exception) {
+        PersistentLogger.logAction(LogLevel.WARNING, session?.username, "Error while computing password entropy!")
+
+        call.respondJson(
+            """{"error": "Chyba při výpočtu entropie."}""",
+            HttpStatusCode.InternalServerError
+        )
     }
 }
 

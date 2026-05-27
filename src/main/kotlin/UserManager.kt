@@ -225,6 +225,25 @@ class UserManager(private val usersFile: File) {
         return UserEntry(username, n, r, p, salt, keyBytes)
     }
 
+    /**
+     * Computes the Shannon entropy of a password based on the size of the character pool
+     * detected (similar to how KeePassXC calculates entropy for generated/manual character-class combinations).
+     */
+    fun computeEntropy(password: String): Float {
+        if (password.isEmpty()) return 0.0f
+
+        var poolSize = 0
+        if (password.any { it.isLowerCase() }) poolSize += 26
+        if (password.any { it.isUpperCase() }) poolSize += 26
+        if (password.any { it.isDigit() }) poolSize += 10
+        if (password.any { !it.isLetterOrDigit() }) poolSize += 32 // Standard symbols set size
+
+        if (poolSize == 0) poolSize = 1 // Prevent log(0)
+
+        val entropy = password.length * (Math.log(poolSize.toDouble()) / Math.log(2.0))
+        return entropy.toFloat()
+    }
+
     private data class UserEntry(
         val username: String,
         val n: Int,

@@ -369,6 +369,82 @@ document.addEventListener('DOMContentLoaded', () => {
     const changePasswordForm = document.getElementById('change-password-form');
     const passwordErrorEl = document.getElementById('password-error-message');
     const passwordSuccessEl = document.getElementById('password-success-message');
+    const newPasswordInput = document.getElementById('new-password');
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthLabel = document.getElementById('password-strength-label');
+    const savePasswordBtn = document.getElementById('save-password-btn');
+
+    let currentEntropy = 0;
+    let entropyTimeout = null;
+
+    const checkPasswordStrength = (password) => {
+        if (!password) {
+            currentEntropy = 0;
+            updateStrengthUI(0);
+            return;
+        }
+
+        if (entropyTimeout) clearTimeout(entropyTimeout);
+
+        entropyTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch('/api/password-entropy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentEntropy = data.entropy || 0;
+                    updateStrengthUI(currentEntropy);
+                }
+            } catch (err) {
+                console.error('Error fetching password entropy:', err);
+            }
+        }, 150);
+    };
+
+    const updateStrengthUI = (entropy) => {
+        const maxScale = 80;
+        const percentage = Math.min((entropy / maxScale) * 100, 100);
+        
+        if (strengthBar) {
+            strengthBar.style.width = `${percentage}%`;
+
+            let color = '#ff3b30'; // Red
+            let glowColor = 'rgba(255, 59, 48, 0.5)';
+
+            if (entropy >= 65) {
+                color = '#00c3ff'; // Cyan
+                glowColor = 'rgba(0, 195, 255, 0.5)';
+            } else if (entropy >= 45) {
+                color = '#34c759'; // Green
+                glowColor = 'rgba(52, 199, 89, 0.5)';
+            } else if (entropy >= 25) {
+                color = '#ffcc00'; // Yellow
+                glowColor = 'rgba(255, 204, 0, 0.5)';
+            }
+
+            strengthBar.style.backgroundColor = color;
+            strengthBar.style.boxShadow = `0 0 8px ${glowColor}`;
+        }
+        
+        if (strengthLabel) {
+            let labelText = `Příliš slabé (${entropy.toFixed(1)} bitů)`;
+            if (entropy >= 65) {
+                labelText = `Velmi silné (${entropy.toFixed(1)} bitů)`;
+            } else if (entropy >= 45) {
+                labelText = `Silné (${entropy.toFixed(1)} bitů)`;
+            } else if (entropy >= 25) {
+                labelText = `Slabé (${entropy.toFixed(1)} bitů)`;
+            }
+            strengthLabel.textContent = `Síla: ${labelText}`;
+        }
+
+        if (savePasswordBtn) {
+            savePasswordBtn.disabled = (entropy < 45);
+        }
+    };
 
     const showPasswordModal = () => {
         changePasswordModal.classList.remove('hidden');
@@ -386,12 +462,19 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('cancel-password-btn').disabled = false;
         if (closePasswordBtn) closePasswordBtn.disabled = false;
 
+        currentEntropy = 0;
+        updateStrengthUI(0);
+
         document.getElementById('current-password').focus();
     };
 
     const hidePasswordModal = () => {
         changePasswordModal.classList.add('hidden');
     };
+
+    newPasswordInput?.addEventListener('input', (e) => {
+        checkPasswordStrength(e.target.value);
+    });
 
     changePasswordBtn?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -417,14 +500,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const newPassword = document.getElementById('new-password').value;
         const confirmNewPassword = document.getElementById('confirm-new-password').value;
 
-        if (newPassword !== confirmNewPassword) {
-            passwordErrorEl.textContent = 'Nová hesla se neshodují.';
+        if (currentEntropy < 45) {
+            passwordErrorEl.textContent = 'Nové heslo musí mít alespoň 45 bitů entropie.';
             passwordErrorEl.classList.remove('hidden');
             return;
         }
 
-        if (newPassword.length === 0) {
-            passwordErrorEl.textContent = 'Nové heslo nemůže být prázdné.';
+        if (newPassword !== confirmNewPassword) {
+            passwordErrorEl.textContent = 'Nová hesla se neshodují.';
             passwordErrorEl.classList.remove('hidden');
             return;
         }
