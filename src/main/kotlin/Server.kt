@@ -97,7 +97,7 @@ fun startServer() {
             staticResources("/", "static")
         }
 
-        println("yt-dlp-web version ${BuildConfig.VERSION} started")
+        Logger.i("yt-dlp-web version ${BuildConfig.VERSION} started")
     }.start(wait = true)
 }
 
@@ -452,19 +452,19 @@ private fun downloadMedia(rawUrl: String,
     val dir = File(outputDir)
 
     if (!rawUrl.isValidUrl()) {
-        println("Error! Invalid url: $rawUrl")
+        Logger.e("Error! Invalid url: $rawUrl")
         return Pair(-1, "Error! Invalid url: $rawUrl")
     }
 
     if (rawUrl.contains("playlist")) {
-        println("Error! Cannot download playlists!")
+        Logger.e("Error! Cannot download playlists!")
         return Pair(-1, "Error! Cannot download playlists!")
     }
 
     if ((dir.isDirectory || dir.mkdirs()) && dir.canWrite() && dir.canRead()) {
         return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback)
     } else {
-        println("Error! $dir is not usable directory!")
+        Logger.e("Error! $dir is not usable directory!")
         return Pair(-1, "Error! $dir is not usable directory!")
     }
 }
