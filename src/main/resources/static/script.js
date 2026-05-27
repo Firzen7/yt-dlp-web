@@ -357,7 +357,111 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(e => {
-                console.error('Failed to decode URL parameter:', e);
+                 console.error('Failed to decode URL parameter:', e);
+             });
+     }
+
+    // Change Password Modal handling
+    const changePasswordBtn = document.getElementById('change-password-btn');
+    const changePasswordModal = document.getElementById('change-password-modal');
+    const closePasswordBtn = document.getElementById('close-password-btn');
+    const cancelPasswordBtn = document.getElementById('cancel-password-btn');
+    const changePasswordForm = document.getElementById('change-password-form');
+    const passwordErrorEl = document.getElementById('password-error-message');
+    const passwordSuccessEl = document.getElementById('password-success-message');
+
+    const showPasswordModal = () => {
+        changePasswordModal.classList.remove('hidden');
+        document.getElementById('current-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-new-password').value = '';
+        passwordErrorEl.classList.add('hidden');
+        passwordSuccessEl.classList.add('hidden');
+        
+        // Re-enable inputs if they were disabled previously
+        document.getElementById('current-password').disabled = false;
+        document.getElementById('new-password').disabled = false;
+        document.getElementById('confirm-new-password').disabled = false;
+        document.getElementById('save-password-btn').disabled = false;
+        document.getElementById('cancel-password-btn').disabled = false;
+        if (closePasswordBtn) closePasswordBtn.disabled = false;
+
+        document.getElementById('current-password').focus();
+    };
+
+    const hidePasswordModal = () => {
+        changePasswordModal.classList.add('hidden');
+    };
+
+    changePasswordBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPasswordModal();
+    });
+
+    closePasswordBtn?.addEventListener('click', hidePasswordModal);
+    cancelPasswordBtn?.addEventListener('click', hidePasswordModal);
+
+    // Close on click outside modal content
+    changePasswordModal?.addEventListener('click', (e) => {
+        if (e.target === changePasswordModal) {
+            hidePasswordModal();
+        }
+    });
+
+    changePasswordForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        passwordErrorEl.classList.add('hidden');
+        passwordSuccessEl.classList.add('hidden');
+
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmNewPassword = document.getElementById('confirm-new-password').value;
+
+        if (newPassword !== confirmNewPassword) {
+            passwordErrorEl.textContent = 'Nová hesla se neshodují.';
+            passwordErrorEl.classList.remove('hidden');
+            return;
+        }
+
+        if (newPassword.length === 0) {
+            passwordErrorEl.textContent = 'Nové heslo nemůže být prázdné.';
+            passwordErrorEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
             });
-    }
+
+            const data = await response.json();
+
+            if (response.ok) {
+                passwordSuccessEl.textContent = 'Heslo bylo úspěšně změněno. Odhlašuji...';
+                passwordSuccessEl.classList.remove('hidden');
+                
+                // Disable inputs and buttons
+                document.getElementById('current-password').disabled = true;
+                document.getElementById('new-password').disabled = true;
+                document.getElementById('confirm-new-password').disabled = true;
+                document.getElementById('save-password-btn').disabled = true;
+                document.getElementById('cancel-password-btn').disabled = true;
+                if (closePasswordBtn) closePasswordBtn.disabled = true;
+
+                // Redirect to login after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 2000);
+            } else {
+                passwordErrorEl.textContent = data.error || 'Nepodařilo se změnit heslo.';
+                passwordErrorEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('Failed to change password:', err);
+            passwordErrorEl.textContent = 'Síťová chyba. Zkuste to prosím znovu.';
+            passwordErrorEl.classList.remove('hidden');
+        }
+    });
 });
