@@ -192,5 +192,27 @@ class UserManagerTest {
             manager.changePassword("nonexistent", "oldpass", "newpass")
         }
     }
+
+    @Test
+    fun `computeEntropy returns 0 for empty password`() {
+        val manager = createManager()
+        assertEquals(0.0f, manager.computeEntropy(""))
+    }
+
+    @Test
+    fun `computeEntropy returns correct entropy for basic passwords`() {
+        val manager = createManager()
+        // lowercase: pool = 26
+        // length = 8
+        // 8 * log2(26) ≈ 8 * 4.70044 ≈ 37.60 bits
+        val entropyLower = manager.computeEntropy("abcdefgh")
+        assertEquals(37.603516f, entropyLower, 0.01f)
+
+        // lowercase + uppercase + digit + special: pool = 26 + 26 + 10 + 32 = 94
+        // length = 8
+        // 8 * log2(94) ≈ 8 * 6.55459 ≈ 52.44 bits
+        val entropyMixed = manager.computeEntropy("Ab1!cDe2")
+        assertEquals(52.43671f, entropyMixed, 0.01f)
+    }
 }
 
