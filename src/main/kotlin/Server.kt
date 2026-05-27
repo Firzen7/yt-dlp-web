@@ -59,6 +59,8 @@ fun startServer() {
             cookie<UserSession>("SESSION") {
                 cookie.path = "/"
                 cookie.httpOnly = true
+                // keeps user logged in for specified time
+                cookie.maxAgeInSeconds = LOGIN_SESSION_LENGTH
             }
         }
 
