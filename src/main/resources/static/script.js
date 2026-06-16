@@ -15,6 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
+    const setChangePasswordDisabled = (disabled) => {
+        const btn = document.getElementById('change-password-btn');
+        if (!btn) return;
+
+        btn.classList.toggle('disabled', disabled);
+        btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    };
+
     // Toggle clear button visibility
     const toggleClearBtn = () => {
         if (customFilenameInput && customFilenameInput.value.length > 0) {
@@ -32,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear filename button
     clearFilenameBtn?.addEventListener('click', () => {
+        if (clearFilenameBtn.disabled) return;
+
         if (customFilenameInput) {
             customFilenameInput.value = '';
             toggleClearBtn();
@@ -154,7 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleClearBtn();
             customFilenameInput.disabled = false;
         }
+        if (clearFilenameBtn) clearFilenameBtn.disabled = false;
         if (urlInput) urlInput.disabled = false;
+        setChangePasswordDisabled(false);
 
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
@@ -204,7 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toggleContainer) toggleContainer.classList.add('disabled');
 
         if (customFilenameInput) customFilenameInput.disabled = true;
+        if (clearFilenameBtn) clearFilenameBtn.disabled = true;
         if (urlInput) urlInput.disabled = true;
+        setChangePasswordDisabled(true);
 
         try {
             const bodyData = { url, format };
@@ -357,7 +371,196 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(e => {
-                console.error('Failed to decode URL parameter:', e);
+                 console.error('Failed to decode URL parameter:', e);
+             });
+     }
+
+    // Change Password Modal handling
+    const changePasswordBtn = document.getElementById('change-password-btn');
+    const changePasswordModal = document.getElementById('change-password-modal');
+    const closePasswordBtn = document.getElementById('close-password-btn');
+    const cancelPasswordBtn = document.getElementById('cancel-password-btn');
+    const changePasswordForm = document.getElementById('change-password-form');
+    const passwordErrorEl = document.getElementById('password-error-message');
+    const passwordSuccessEl = document.getElementById('password-success-message');
+    const newPasswordInput = document.getElementById('new-password');
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthLabel = document.getElementById('password-strength-label');
+    const savePasswordBtn = document.getElementById('save-password-btn');
+
+    let currentEntropy = 0;
+    let entropyTimeout = null;
+
+    const checkPasswordStrength = (password) => {
+        if (!password) {
+            currentEntropy = 0;
+            updateStrengthUI(0);
+            return;
+        }
+
+        if (entropyTimeout) clearTimeout(entropyTimeout);
+
+        entropyTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch('/api/password-entropy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentEntropy = data.entropy || 0;
+                    updateStrengthUI(currentEntropy);
+                }
+            } catch (err) {
+                console.error('Error fetching password entropy:', err);
+            }
+        }, 150);
+    };
+
+    const updateStrengthUI = (entropy) => {
+        const maxScale = 80;
+        const percentage = Math.min((entropy / maxScale) * 100, 100);
+        
+        if (strengthBar) {
+            strengthBar.style.width = `${percentage}%`;
+
+            let color = '#ff3b30'; // Red
+            let glowColor = 'rgba(255, 59, 48, 0.5)';
+
+            if (entropy >= 65) {
+                color = '#00c3ff'; // Cyan
+                glowColor = 'rgba(0, 195, 255, 0.5)';
+            } else if (entropy >= 45) {
+                color = '#34c759'; // Green
+                glowColor = 'rgba(52, 199, 89, 0.5)';
+            } else if (entropy >= 25) {
+                color = '#ffcc00'; // Yellow
+                glowColor = 'rgba(255, 204, 0, 0.5)';
+            }
+
+            strengthBar.style.backgroundColor = color;
+            strengthBar.style.boxShadow = `0 0 8px ${glowColor}`;
+        }
+        
+        if (strengthLabel) {
+            let labelText = `Příliš slabé (${entropy.toFixed(1)} bitů)`;
+            if (entropy >= 65) {
+                labelText = `Velmi silné (${entropy.toFixed(1)} bitů)`;
+            } else if (entropy >= 45) {
+                labelText = `Silné (${entropy.toFixed(1)} bitů)`;
+            } else if (entropy >= 25) {
+                labelText = `Slabé (${entropy.toFixed(1)} bitů)`;
+            }
+            strengthLabel.textContent = `Síla: ${labelText}`;
+        }
+
+        if (savePasswordBtn) {
+            savePasswordBtn.disabled = (entropy < 45);
+        }
+    };
+
+    const showPasswordModal = () => {
+        changePasswordModal.classList.remove('hidden');
+        document.getElementById('current-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-new-password').value = '';
+        passwordErrorEl.classList.add('hidden');
+        passwordSuccessEl.classList.add('hidden');
+        
+        // Re-enable inputs if they were disabled previously
+        document.getElementById('current-password').disabled = false;
+        document.getElementById('new-password').disabled = false;
+        document.getElementById('confirm-new-password').disabled = false;
+        document.getElementById('save-password-btn').disabled = false;
+        document.getElementById('cancel-password-btn').disabled = false;
+        if (closePasswordBtn) closePasswordBtn.disabled = false;
+
+        currentEntropy = 0;
+        updateStrengthUI(0);
+
+        document.getElementById('current-password').focus();
+    };
+
+    const hidePasswordModal = () => {
+        changePasswordModal.classList.add('hidden');
+    };
+
+    newPasswordInput?.addEventListener('input', (e) => {
+        checkPasswordStrength(e.target.value);
+    });
+
+    changePasswordBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (changePasswordBtn.getAttribute('aria-disabled') === 'true') return;
+
+        showPasswordModal();
+    });
+
+    closePasswordBtn?.addEventListener('click', hidePasswordModal);
+    cancelPasswordBtn?.addEventListener('click', hidePasswordModal);
+
+    // Close on click outside modal content
+    changePasswordModal?.addEventListener('click', (e) => {
+        if (e.target === changePasswordModal) {
+            hidePasswordModal();
+        }
+    });
+
+    changePasswordForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        passwordErrorEl.classList.add('hidden');
+        passwordSuccessEl.classList.add('hidden');
+
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmNewPassword = document.getElementById('confirm-new-password').value;
+
+        if (currentEntropy < 45) {
+            passwordErrorEl.textContent = 'Nové heslo musí mít alespoň 45 bitů entropie.';
+            passwordErrorEl.classList.remove('hidden');
+            return;
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            passwordErrorEl.textContent = 'Nová hesla se neshodují.';
+            passwordErrorEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
             });
-    }
+
+            const data = await response.json();
+
+            if (response.ok) {
+                passwordSuccessEl.textContent = 'Heslo bylo úspěšně změněno. Odhlašuji...';
+                passwordSuccessEl.classList.remove('hidden');
+                
+                // Disable inputs and buttons
+                document.getElementById('current-password').disabled = true;
+                document.getElementById('new-password').disabled = true;
+                document.getElementById('confirm-new-password').disabled = true;
+                document.getElementById('save-password-btn').disabled = true;
+                document.getElementById('cancel-password-btn').disabled = true;
+                if (closePasswordBtn) closePasswordBtn.disabled = true;
+
+                // Redirect to login after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 2000);
+            } else {
+                passwordErrorEl.textContent = data.error || 'Nepodařilo se změnit heslo.';
+                passwordErrorEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('Failed to change password:', err);
+            passwordErrorEl.textContent = 'Síťová chyba. Zkuste to prosím znovu.';
+            passwordErrorEl.classList.remove('hidden');
+        }
+    });
 });

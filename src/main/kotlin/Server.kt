@@ -59,6 +59,8 @@ fun startServer() {
             cookie<UserSession>("SESSION") {
                 cookie.path = "/"
                 cookie.httpOnly = true
+                // keeps user logged in for specified time
+                cookie.maxAgeInSeconds = LOGIN_SESSION_LENGTH
             }
         }
 
@@ -91,11 +93,13 @@ fun startServer() {
             get("/login.html") { provideProtectedLogin(call) }
             post("/api/title") { fetchVideoTitle(call) }
             post("/api/decode") { decodeBase64Url(call) }
+            post("/api/change-password") { handleChangePassword(userManager, call) }
+            post("/api/password-entropy") { handlePasswordEntropy(userManager, call) }
 
             staticResources("/", "static")
         }
 
-        println("yt-dlp-web version ${BuildConfig.VERSION} started")
+        Logger.i("yt-dlp-web version ${BuildConfig.VERSION} started")
     }.start(wait = true)
 }
 
@@ -125,6 +129,71 @@ private suspend fun performLogout(call: RoutingCall) {
     call.respondJson("""{"ok": true}""")
 
     PersistentLogger.logAction(LogLevel.INFO, session?.username, "Logout")
+}
+
+private suspend fun handleChangePassword(userManager: UserManager, call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+    if (session == null) {
+        return call.respondJson("""{"error": "Unauthorized"}""", HttpStatusCode.Unauthorized)
+    }
+
+    val body = JSONObject(call.receiveText())
+    val currentPassword = body.optString("currentPassword", "")
+    val newPassword = body.optString("newPassword", "")
+    val confirmNewPassword = body.optString("confirmNewPassword", "")
+
+    if (newPassword.isEmpty()) {
+        return call.respondJson(
+            """{"error": "Nové heslo nesmí být prázdné."}""",
+            HttpStatusCode.BadRequest
+        )
+    }
+
+    if (newPassword != confirmNewPassword) {
+        return call.respondJson(
+            """{"error": "Nová hesla se neshodují."}""",
+            HttpStatusCode.BadRequest
+        )
+    }
+
+    try {
+        userManager.changePassword(session.username, currentPassword, newPassword)
+        
+        call.sessions.clear<UserSession>()
+        call.respondJson("""{"ok": true}""")
+        
+        PersistentLogger.logAction(LogLevel.INFO, session.username, "Password changed successfully. User logged out.")
+    } catch (e: IllegalArgumentException) {
+        call.respondJson(
+            """{"error": "${e.message ?: "Chyba při změně hesla."}"}""",
+            HttpStatusCode.BadRequest
+        )
+        PersistentLogger.logAction(LogLevel.WARNING, session.username, "Failed to change password: ${e.message}")
+    } catch (e: Exception) {
+        call.respondJson(
+            """{"error": "Chyba při změně hesla."}""",
+            HttpStatusCode.InternalServerError
+        )
+        PersistentLogger.logAction(LogLevel.ERROR, session.username, "Exception while changing password: ${e.message}")
+    }
+}
+
+private suspend fun handlePasswordEntropy(userManager: UserManager, call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+
+    try {
+        val body = JSONObject(call.receiveText())
+        val password = body.optString("password", "")
+        val entropy = userManager.computeEntropy(password)
+        call.respondJson("""{"entropy": $entropy}""")
+    } catch (_: Exception) {
+        PersistentLogger.logAction(LogLevel.WARNING, session?.username, "Error while computing password entropy!")
+
+        call.respondJson(
+            """{"error": "Chyba při výpočtu entropie."}""",
+            HttpStatusCode.InternalServerError
+        )
+    }
 }
 
 private suspend fun provideUserInfo(call: RoutingCall) {
@@ -450,19 +519,19 @@ private fun downloadMedia(rawUrl: String,
     val dir = File(outputDir)
 
     if (!rawUrl.isValidUrl()) {
-        println("Error! Invalid url: $rawUrl")
+        Logger.e("Error! Invalid url: $rawUrl")
         return Pair(-1, "Error! Invalid url: $rawUrl")
     }
 
     if (rawUrl.contains("playlist")) {
-        println("Error! Cannot download playlists!")
+        Logger.e("Error! Cannot download playlists!")
         return Pair(-1, "Error! Cannot download playlists!")
     }
 
     if ((dir.isDirectory || dir.mkdirs()) && dir.canWrite() && dir.canRead()) {
         return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback)
     } else {
-        println("Error! $dir is not usable directory!")
+        Logger.e("Error! $dir is not usable directory!")
         return Pair(-1, "Error! $dir is not usable directory!")
     }
 }

@@ -22,8 +22,12 @@
         </div>
         <div class="user-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
             <div id="logged-in-user" style="color: var(--text-muted); font-size: 0.85rem;"></div>
-            <a href="#" id="logout-btn">Odhlásit se <i class="fa-solid fa-arrow-right-from-bracket"
-                    style="margin-left: 5px;"></i></a>
+            <div class="nav-links" style="display: flex; gap: 12px; align-items: center;">
+                <a href="#" id="change-password-btn"><i class="fa-solid fa-key" style="margin-right: 4px;"></i> Změnit heslo</a>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">|</span>
+                <a href="#" id="logout-btn">Odhlásit se <i class="fa-solid fa-arrow-right-from-bracket"
+                        style="margin-left: 5px;"></i></a>
+            </div>
         </div>
     </header>
 
@@ -80,6 +84,52 @@
     </main>
 
     <div id="app-version" class="version-info"></div>
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="modal-overlay hidden">
+        <div class="glass-card modal-card neon-border">
+            <button type="button" class="close-modal-btn" id="close-password-btn" title="Zavřít">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 class="modal-title neon-text" style="font-size: 1.8rem; margin-bottom: 2rem;">Změnit heslo</h2>
+            
+            <form id="change-password-form" class="content-wrapper" style="gap: 1.5rem;">
+                <div class="input-group">
+                    <input type="password" id="current-password" placeholder="Aktuální heslo..." required />
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="new-password" placeholder="Nové heslo..." required />
+                </div>
+
+                <div class="strength-meter-container">
+                    <div class="strength-bar-wrapper">
+                        <div id="password-strength-bar" class="strength-bar"></div>
+                    </div>
+                    <div class="strength-text-row">
+                        <span id="password-strength-label">Síla: Příliš slabé (0 bitů)</span>
+                        <span id="password-strength-req">Min. 45 bitů</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <input type="password" id="confirm-new-password" placeholder="Potvrdit nové heslo..." required />
+                </div>
+
+                <div class="action-container" style="margin-top: 1rem; display: flex; gap: 15px; width: 100%; justify-content: center; position: static; height: auto;">
+                    <button type="button" id="cancel-password-btn" class="btn-secondary" style="flex: 1; max-width: 140px; height: 50px;">ZRUŠIT</button>
+                    <button type="submit" id="save-password-btn" class="btn-primary" style="flex: 1; max-width: 140px; height: 50px; position: static;">ULOŽIT</button>
+                </div>
+
+                <div id="password-error-message" class="error-message hidden" style="position: static; max-width: 100%; height: auto; padding: 10px 15px; margin-top: 10px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center;">
+                    Něco se pokazilo.
+                </div>
+                <div id="password-success-message" class="btn-success hidden" style="position: static; max-width: 100%; height: auto; padding: 10px 15px; margin-top: 10px; font-size: 0.95rem; background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%); display: flex; align-items: center; justify-content: center;">
+                    Heslo bylo úspěšně změněno. Odhlašuji...
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="/script.js"></script>
 </body>

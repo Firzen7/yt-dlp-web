@@ -54,3 +54,52 @@ fun addUser() {
         println("Environments without console are not supported!")
     }
 }
+
+fun changePassword(username: String) {
+    val userManager = UserManager(File(USERS_FILE))
+
+    if (!userManager.userExists(username)) {
+        println("Error: User '$username' does not exist.")
+        return
+    }
+
+    val console = System.console()
+
+    if (console != null) {
+        val passwordArray = console.readPassword("Enter new password: ")
+        val passwordArrayConfirm = console.readPassword("Confirm new password: ")
+
+        if (passwordArray == null || passwordArrayConfirm == null) {
+            println("Password reading failed")
+            return
+        }
+
+        val password = String(passwordArray)
+        val passwordConfirm = String(passwordArrayConfirm)
+
+        if (password != passwordConfirm) {
+            println("Passwords do not match!")
+            return
+        }
+
+        if (password.isEmpty()) {
+            println("Password cannot be empty")
+            return
+        }
+
+        try {
+            userManager.changePassword(username, password)
+            println("Password for user $username changed successfully.")
+        } catch (e: Exception) {
+            println("Failed to change password: ${e.message}")
+        }
+
+        // Clear passwords from memory
+        passwordArray.fill(' ')
+        passwordArrayConfirm.fill(' ')
+    }
+    else {
+        println("Environments without console are not supported!")
+    }
+}
+

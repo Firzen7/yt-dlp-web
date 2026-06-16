@@ -112,6 +112,12 @@ nav a:hover {
     color: var(--text-main);
 }
 
+.user-actions a.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* Main Container */
 .container {
     flex: 1;
@@ -305,8 +311,14 @@ nav a:hover {
     z-index: 4;
 }
 
-.clear-filename-btn:hover {
+.clear-filename-btn:hover:not(:disabled) {
     color: #ff3b30;
+}
+
+.clear-filename-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .clear-filename-btn.hidden {
@@ -494,4 +506,122 @@ input:disabled+.slider {
     opacity: 0.6;
     pointer-events: none;
     z-index: 10;
+}
+
+/* Modal overlay styling */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(18, 20, 31, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.modal-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-card {
+    max-width: 450px !important;
+    padding: 2.5rem 3rem !important;
+}
+
+.close-modal-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close-modal-btn:hover {
+    color: var(--text-main);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Fix input style inside modal */
+.modal-overlay .input-group input[type="password"] {
+    width: 100%;
+    height: 100%;
+    background-color: var(--primary-bg);
+    border: none;
+    border-radius: 12px;
+    padding: 0 20px;
+    color: var(--text-main);
+    font-size: 1rem;
+    font-family: var(--font-main);
+    outline: none;
+}
+
+.modal-overlay .input-group input[type="password"]::placeholder {
+    color: var(--text-muted);
+}
+
+/* Password Strength Indicator styling */
+.strength-meter-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: -8px;
+}
+
+.strength-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.strength-bar {
+    width: 0%;
+    height: 100%;
+    background: #ff3b30;
+    transition: width 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 0 8px rgba(255, 59, 48, 0.5);
+    border-radius: 3px;
+}
+
+.strength-text-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+#password-strength-req {
+    font-weight: 500;
 }

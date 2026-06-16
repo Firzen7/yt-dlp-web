@@ -58,6 +58,80 @@ class UserManager(private val usersFile: File) {
     }
 
     /**
+     * Changes the password for the given user.
+     * The password is hashed using scrypt in a format compatible with Werkzeug.
+     *
+     * @throws IllegalArgumentException if the user does not exist or if the new password is empty
+     */
+    fun changePassword(username: String, newPassword: String) {
+        Logger.i("changePassword()")
+        require(username.isNotBlank()) { "Username must not be blank" }
+        require(newPassword.isNotEmpty()) { "New password must not be empty" }
+
+        synchronized(lock) {
+            if (!userExists(username)) {
+                throw IllegalArgumentException("User '$username' does not exist")
+            }
+
+            val salt = generateSalt()
+            val hash = hashPassword(newPassword, salt)
+            val saltEncoded = String(salt, Charsets.UTF_8)
+            val hashHex = hash.toHexString()
+
+            val newEntryLine = "$username:scrypt:$SCRYPT_N:$SCRYPT_R:$SCRYPT_P\$$saltEncoded\$$hashHex"
+
+            val lines = if (usersFile.exists()) usersFile.readLines() else emptyList()
+            val updatedLines = lines.map { line ->
+                val colonIndex = line.indexOf(':')
+                if (colonIndex >= 0 && line.substring(0, colonIndex) == username) {
+                    newEntryLine
+                } else {
+                    line
+                }
+            }
+
+            usersFile.writeText(updatedLines.joinToString("\n", postfix = "\n"))
+        }
+    }
+
+    /**
+     * Changes the password for the given user after validating the current password.
+     *
+     * @throws IllegalArgumentException if the user does not exist, the current password is incorrect,
+     *                                  or if the new password is empty
+     */
+    fun changePassword(username: String, oldPassword: String, newPassword: String) {
+        Logger.i("changePassword(with validation)")
+        require(username.isNotBlank()) { "Username must not be blank" }
+        require(newPassword.isNotEmpty()) { "New password must not be empty" }
+
+        synchronized(lock) {
+            if (!validateUser(username, oldPassword)) {
+                throw IllegalArgumentException("Nesprávné aktuální heslo.")
+            }
+
+            val salt = generateSalt()
+            val hash = hashPassword(newPassword, salt)
+            val saltEncoded = String(salt, Charsets.UTF_8)
+            val hashHex = hash.toHexString()
+
+            val newEntryLine = "$username:scrypt:$SCRYPT_N:$SCRYPT_R:$SCRYPT_P\$$saltEncoded\$$hashHex"
+
+            val lines = if (usersFile.exists()) usersFile.readLines() else emptyList()
+            val updatedLines = lines.map { line ->
+                val colonIndex = line.indexOf(':')
+                if (colonIndex >= 0 && line.substring(0, colonIndex) == username) {
+                    newEntryLine
+                } else {
+                    line
+                }
+            }
+
+            usersFile.writeText(updatedLines.joinToString("\n", postfix = "\n"))
+        }
+    }
+
+    /**
      * Validates the provided credentials against the stored users.
      *
      * @return true if the username exists and the password matches
@@ -149,6 +223,25 @@ class UserManager(private val usersFile: File) {
         val keyBytes = hexKey.hexToByteArray()
 
         return UserEntry(username, n, r, p, salt, keyBytes)
+    }
+
+    /**
+     * Computes the Shannon entropy of a password based on the size of the character pool
+     * detected (similar to how KeePassXC calculates entropy for generated/manual character-class combinations).
+     */
+    fun computeEntropy(password: String): Float {
+        if (password.isEmpty()) return 0.0f
+
+        var poolSize = 0
+        if (password.any { it.isLowerCase() }) poolSize += 26
+        if (password.any { it.isUpperCase() }) poolSize += 26
+        if (password.any { it.isDigit() }) poolSize += 10
+        if (password.any { !it.isLetterOrDigit() }) poolSize += 32 // Standard symbols set size
+
+        if (poolSize == 0) poolSize = 1 // Prevent log(0)
+
+        val entropy = password.length * (Math.log(poolSize.toDouble()) / Math.log(2.0))
+        return entropy.toFloat()
     }
 
     private data class UserEntry(
