@@ -15,6 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const logoutBtn = document.getElementById('logout-btn');
 
+    const setChangePasswordDisabled = (disabled) => {
+        const btn = document.getElementById('change-password-btn');
+        if (!btn) return;
+
+        btn.classList.toggle('disabled', disabled);
+        btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    };
+
     // Toggle clear button visibility
     const toggleClearBtn = () => {
         if (customFilenameInput && customFilenameInput.value.length > 0) {
@@ -32,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear filename button
     clearFilenameBtn?.addEventListener('click', () => {
+        if (clearFilenameBtn.disabled) return;
+
         if (customFilenameInput) {
             customFilenameInput.value = '';
             toggleClearBtn();
@@ -154,7 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleClearBtn();
             customFilenameInput.disabled = false;
         }
+        if (clearFilenameBtn) clearFilenameBtn.disabled = false;
         if (urlInput) urlInput.disabled = false;
+        setChangePasswordDisabled(false);
 
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
@@ -204,7 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toggleContainer) toggleContainer.classList.add('disabled');
 
         if (customFilenameInput) customFilenameInput.disabled = true;
+        if (clearFilenameBtn) clearFilenameBtn.disabled = true;
         if (urlInput) urlInput.disabled = true;
+        setChangePasswordDisabled(true);
 
         try {
             const bodyData = { url, format };
@@ -478,6 +492,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     changePasswordBtn?.addEventListener('click', (e) => {
         e.preventDefault();
+        if (changePasswordBtn.getAttribute('aria-disabled') === 'true') return;
+
         showPasswordModal();
     });
 
