@@ -112,6 +112,12 @@ nav a:hover {
     color: var(--text-main);
 }
 
+.user-actions a.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* Main Container */
 .container {
     flex: 1;
@@ -305,8 +311,14 @@ nav a:hover {
     z-index: 4;
 }
 
-.clear-filename-btn:hover {
+.clear-filename-btn:hover:not(:disabled) {
     color: #ff3b30;
+}
+
+.clear-filename-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .clear-filename-btn.hidden {
