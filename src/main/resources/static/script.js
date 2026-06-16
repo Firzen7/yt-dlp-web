@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submit-btn');
     const statusMessage = document.getElementById('status-message');
     const errorMessage = document.getElementById('error-message');
+    const cancelDownloadBtn = document.getElementById('cancel-download-btn');
     const logoutBtn = document.getElementById('logout-btn');
 
     const setChangePasswordDisabled = (disabled) => {
@@ -148,6 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.classList.remove('hidden');
         statusMessage.classList.add('hidden');
         errorMessage.classList.add('hidden');
+        cancelDownloadBtn?.classList.add('hidden');
+        if (cancelDownloadBtn) cancelDownloadBtn.disabled = false;
 
         const formatToggleEl = document.getElementById('format-toggle');
         if (formatToggleEl) formatToggleEl.disabled = false;
@@ -174,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusText = document.getElementById('status-text');
         if (statusText) statusText.textContent = 'Zpracovávám...';
         currentMaxProgress = 0; // Reset max progress on UI reset
+        currentTaskId = null;
     };
 
     // Form submission
@@ -205,6 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.classList.add('hidden');
         statusMessage.classList.remove('hidden');
         errorMessage.classList.add('hidden');
+        cancelDownloadBtn?.classList.remove('hidden');
+        if (cancelDownloadBtn) cancelDownloadBtn.disabled = false;
 
         const formatToggleEl = document.getElementById('format-toggle');
         if (formatToggleEl) formatToggleEl.disabled = true;
@@ -256,6 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const pollStatus = async (taskId) => {
+        if (taskId !== currentTaskId) return;
+
         try {
             const response = await fetch(`/api/status/${taskId}`);
 
@@ -265,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
+            if (taskId !== currentTaskId) return;
 
             if (data.status === 'completed') {
                 showDownload(data.download_url);
@@ -276,6 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     errorMessage.textContent = 'Při stahování došlo k chybě.';
                 }
                 showError();
+            } else if (data.status === 'cancelled') {
+                showCancelled();
             } else {
                 // Update progress if available
                 if (data.progress !== undefined && data.progress !== null) {
@@ -313,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (statusText) statusText.textContent = 'Hotovo! Ukládám...';
         if (progressBarBg) progressBarBg.style.width = '100%';
+        cancelDownloadBtn?.classList.add('hidden');
 
         // Clear input field on success
         document.getElementById('video-url').value = '';
@@ -330,9 +342,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(resetUI, 1000);
     };
 
+    const showCancelled = () => {
+        const statusText = document.getElementById('status-text');
+        const progressBarBg = document.getElementById('progress-bar-bg');
+
+        if (statusText) statusText.textContent = 'Stahování zrušeno';
+        if (progressBarBg) progressBarBg.style.width = '0%';
+        cancelDownloadBtn?.classList.add('hidden');
+
+        setTimeout(resetUI, 1000);
+    };
+
     const showError = () => {
         statusMessage.classList.add('hidden');
         errorMessage.classList.remove('hidden');
+        cancelDownloadBtn?.classList.add('hidden');
 
         // Reset progress bar just in case
         const progressBarBg = document.getElementById('progress-bar-bg');
@@ -344,6 +368,31 @@ document.addEventListener('DOMContentLoaded', () => {
             resetUI();
         }, 5000);
     };
+
+    cancelDownloadBtn?.addEventListener('click', async () => {
+        if (!currentTaskId || cancelDownloadBtn.disabled) return;
+
+        cancelDownloadBtn.disabled = true;
+        const statusText = document.getElementById('status-text');
+        if (statusText) statusText.textContent = 'Ruším stahování...';
+
+        try {
+            const response = await fetch(`/api/cancel/${currentTaskId}`, { method: 'POST' });
+
+            if (response.status === 401) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            if (!response.ok) throw new Error('Failed to cancel download');
+
+            showCancelled();
+        } catch (error) {
+            console.error('Error cancelling download:', error);
+            errorMessage.textContent = 'Stahování se nepodařilo zrušit.';
+            showError();
+        }
+    });
 
     // Handle base64 encoded URL parameter
     const urlParams = new URLSearchParams(window.location.search);

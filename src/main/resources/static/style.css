@@ -471,6 +471,37 @@ input:disabled+.slider {
     background: var(--primary-bg);
     border: 1px solid var(--border-glow);
     color: #e2b0ff;
+    padding: 0 48px 0 20px;
+}
+
+.cancel-download-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 59, 48, 0.45);
+    background: rgba(255, 59, 48, 0.12);
+    color: #ff6b61;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: color 0.2s, background-color 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.cancel-download-btn:hover:not(:disabled) {
+    background: rgba(255, 59, 48, 0.22);
+    border-color: rgba(255, 59, 48, 0.75);
+    color: #ff3b30;
+}
+
+.cancel-download-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
 }
 
 .btn-success {

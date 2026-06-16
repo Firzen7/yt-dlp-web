@@ -12,6 +12,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +25,7 @@ import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
 import okhttp3.OkHttpClient
+import kotlin.coroutines.cancellation.CancellationException
 
 // testing links:
 // slow audio conversion:
@@ -48,6 +50,8 @@ data class DownloadTask(
 )
 
 private val tasks = ConcurrentHashMap<String, DownloadTask>()
+private val taskJobs = ConcurrentHashMap<String, Job>()
+private val taskProcesses = ConcurrentHashMap<String, Process>()
 
 fun startServer() {
     Logger.i("startServer()")
@@ -85,6 +89,7 @@ fun startServer() {
             post("/api/logout") { performLogout(call) }
             get("/api/user") { provideUserInfo(call) }
             post("/api/download") { performDownload(call) }
+            post("/api/cancel/{taskId}") { cancelDownload(call) }
             get("/api/status/{taskId}") { reportTaskStatus(call) }
             get("/api/file/{taskId}") { provideDownloadedFile(call) }
             get("/api/version") { provideVersion(call) }
@@ -233,18 +238,37 @@ private suspend fun performDownload(call: RoutingCall) {
     tasks[taskId] = DownloadTask(status = "processing")
 
     // Run download in background
-    CoroutineScope(Dispatchers.IO).launch {
+    val downloadJob = CoroutineScope(Dispatchers.IO).launch {
         try {
             val audioOnly = format == "mp3"
             val taskDir = File(DOWNLOAD_DIRECTORY, taskId)
             if (!taskDir.exists()) taskDir.mkdirs()
 
             val customName = customFilename.takeIf { it.isNotBlank() }
-            val (exitCode, output) = downloadMedia(url, taskDir.absolutePath, audioOnly, customName) { percent ->
-                val currentTask = tasks[taskId]
-                if (currentTask != null) {
-                    tasks[taskId] = currentTask.copy(progress = percent)
+            val (exitCode, output) = downloadMedia(
+                url,
+                taskDir.absolutePath,
+                audioOnly,
+                customName,
+                progressCallback = { percent ->
+                    val currentTask = tasks[taskId]
+                    if (currentTask?.status == "processing") {
+                        tasks[taskId] = currentTask.copy(progress = percent)
+                    }
+                },
+                processCallback = { process ->
+                    if (process == null) {
+                        taskProcesses.remove(taskId)
+                    } else if (tasks[taskId]?.status == "cancelled") {
+                        destroyProcessTree(process)
+                    } else {
+                        taskProcesses[taskId] = process
+                    }
                 }
+            )
+
+            if (tasks[taskId]?.status == "cancelled") {
+                return@launch
             }
 
             if (exitCode == 0) {
@@ -284,6 +308,14 @@ private suspend fun performDownload(call: RoutingCall) {
                     error = "Něco se pokazilo (yt-dlp: $exitCode)"
                 )
             }
+        } catch (_: CancellationException) {
+            if (tasks[taskId]?.status != "cancelled") {
+                tasks[taskId] = DownloadTask(
+                    status = "cancelled",
+                    error = "Stahování bylo zrušeno"
+                )
+            }
+            Logger.i("Download cancelled for taskId=$taskId")
         } catch (e: Exception) {
             Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
             PersistentLogger.logAction(LogLevel.ERROR, session.username,
@@ -294,10 +326,48 @@ private suspend fun performDownload(call: RoutingCall) {
                 status = "error",
                 error = e.message ?: "Neznámá chyba"
             )
+        } finally {
+            taskJobs.remove(taskId)
+            taskProcesses.remove(taskId)
         }
     }
+    taskJobs[taskId] = downloadJob
 
     call.respondJson("""{"task_id": "$taskId"}""")
+}
+
+private suspend fun cancelDownload(call: RoutingCall) {
+    val session = call.sessions.get<UserSession>()
+        ?: return call.respondJson(
+            """{"error": "Unauthorized"}""",
+            HttpStatusCode.Unauthorized
+        )
+
+    val taskId = call.parameters["taskId"] ?: ""
+    val task = tasks[taskId]
+        ?: return call.respondJson(
+            """{"error": "Task not found"}""",
+            HttpStatusCode.NotFound
+        )
+
+    if (task.status != "processing") {
+        return call.respondJson("""{"ok": true, "status": "${task.status}"}""")
+    }
+
+    tasks[taskId] = task.copy(
+        status = "cancelled",
+        error = "Stahování bylo zrušeno"
+    )
+
+    taskProcesses.remove(taskId)?.let { process ->
+        destroyProcessTree(process)
+    }
+    taskJobs.remove(taskId)?.cancel(CancellationException("Download cancelled by user"))
+
+    Logger.i("Cancel requested for taskId=$taskId by user=${session.username}")
+    PersistentLogger.logAction(LogLevel.INFO, session.username, "Cancelled download task $taskId")
+
+    call.respondJson("""{"ok": true, "status": "cancelled"}""")
 }
 
 private suspend fun reportTaskStatus(call: RoutingCall) {
@@ -512,7 +582,8 @@ private fun downloadMedia(rawUrl: String,
                           outputDir: String,
                           audioOnly: Boolean = false,
                           customFilename: String? = null,
-                          progressCallback: (Double?) -> Unit = {}) : Pair<Int, String> {
+                          progressCallback: (Double?) -> Unit = {},
+                          processCallback: (Process?) -> Unit = {}) : Pair<Int, String> {
 
     Logger.i("downloadMedia()")
 
@@ -529,7 +600,7 @@ private fun downloadMedia(rawUrl: String,
     }
 
     if ((dir.isDirectory || dir.mkdirs()) && dir.canWrite() && dir.canRead()) {
-        return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback)
+        return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback, processCallback)
     } else {
         Logger.e("Error! $dir is not usable directory!")
         return Pair(-1, "Error! $dir is not usable directory!")
@@ -537,7 +608,8 @@ private fun downloadMedia(rawUrl: String,
 }
 
 private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
-                          progressCallback: (Double?) -> Unit) : Pair<Int, String> {
+                          progressCallback: (Double?) -> Unit,
+                          processCallback: (Process?) -> Unit) : Pair<Int, String> {
 
     Logger.i("downloadMedia(url=$url, outputDir=${outputDir.absolutePath})")
     val fullLog = StringBuilder()
@@ -565,7 +637,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
 
         Logger.i("Executing yt-dlp with arguments: ${commandList.joinToString(" ")}")
 
-        val exitCode = runProcess(commandList, outputDir, fullLog, progressCallback)
+        val exitCode = runProcess(commandList, outputDir, fullLog, progressCallback, processCallback)
 
         if(audioOnly && exitCode != 0 && !slowAudioConversion) {
             return runYtDlp(true)

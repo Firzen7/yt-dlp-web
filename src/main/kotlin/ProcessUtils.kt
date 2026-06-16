@@ -9,12 +9,14 @@ import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 
 suspend fun runProcess(command: List<String>, outputDir: File, fullLog: StringBuilder,
-                       progressCallback: (Double?) -> Unit) : Int {
+                       progressCallback: (Double?) -> Unit,
+                       processCallback: (Process?) -> Unit = {}) : Int {
 
     val process = ProcessBuilder(command)
         .directory(outputDir)
         .redirectErrorStream(false)
         .start()
+    processCallback(process)
 
     val outJob = process.inputStream.bufferedReader().consumeLines(OUT_TAG, fullLog, progressCallback)
     val errJob = process.errorStream.bufferedReader().consumeLines(ERROR_TAG, fullLog, progressCallback)
@@ -36,6 +38,7 @@ suspend fun runProcess(command: List<String>, outputDir: File, fullLog: StringBu
         process.inputStream.close()
         process.errorStream.close()
         process.outputStream.close()
+        processCallback(null)
     }
 }
 
