@@ -504,6 +504,10 @@ input:disabled+.slider {
     cursor: wait;
 }
 
+.cancel-download-btn.hidden {
+    transform: translateY(-50%);
+}
+
 .btn-success {
     background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
     color: white;
