@@ -419,6 +419,77 @@ input:disabled+.slider {
     opacity: 0.5;
 }
 
+.audio-options {
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.audio-options-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-style: italic;
+    text-align: center;
+}
+
+.audio-options-choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 4px;
+    border-radius: 12px;
+    background-color: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 4px;
+}
+
+.audio-options.hidden {
+    display: none;
+}
+
+.audio-options.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.audio-option {
+    position: relative;
+    height: 42px;
+    border-radius: 9px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.audio-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.audio-option span {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    transition: color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.audio-option input:checked + span {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.audio-option:hover span {
+    color: var(--text-main);
+}
+
 /* Action Button */
 .action-container {
     width: 100%;

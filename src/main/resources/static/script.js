@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const filenameLoader = document.getElementById('filename-loader');
     const clearFilenameBtn = document.getElementById('clear-filename-btn');
     const formatToggle = document.getElementById('format-toggle');
+    const audioOptions = document.getElementById('audio-options');
+    const audioConversionInputs = document.querySelectorAll('input[name="audio-conversion"]');
     const videoLabel = document.querySelector('.video-label');
     const mp3Label = document.querySelector('.mp3-label');
     const form = document.getElementById('download-form');
@@ -52,6 +54,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentMaxProgress = 0;
     let currentTaskId = null;
+    let currentAudioConversion = 'fastest';
+
+    const setAudioOptionsDisabled = (disabled) => {
+        audioConversionInputs.forEach(input => {
+            input.disabled = disabled;
+        });
+        audioOptions?.classList.toggle('disabled', disabled);
+    };
+
+    const updateAudioOptionsVisibility = () => {
+        if (formatToggle?.checked) {
+            audioOptions?.classList.remove('hidden');
+        } else {
+            audioOptions?.classList.add('hidden');
+        }
+    };
 
     // Fetch and display app version
     fetch('/api/version')
@@ -142,7 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
             videoLabel.classList.add('glow-text');
             mp3Label.classList.remove('glow-text');
         }
+        updateAudioOptionsVisibility();
     });
+    updateAudioOptionsVisibility();
 
     // Reset UI state
     const resetUI = () => {
@@ -160,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleContainer = document.querySelector('.toggle-container');
         if (toggleContainer) toggleContainer.classList.remove('disabled');
+        setAudioOptionsDisabled(false);
 
         filenameGroup?.classList.add('hidden');
         if (customFilenameInput) {
@@ -188,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const url = document.getElementById('video-url').value.trim();
         const format = document.getElementById('format-toggle').checked ? 'mp3' : 'video';
+        const audioConversion = document.querySelector('input[name="audio-conversion"]:checked')?.value || 'fastest';
 
         let customFilename = null;
         if (!filenameGroup?.classList.contains('hidden') && customFilenameInput) {
@@ -204,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reset max progress for a new download
         currentMaxProgress = 0;
+        currentAudioConversion = audioConversion;
 
         // Show loading state
         submitBtn.classList.add('hidden');
@@ -220,6 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleContainer = document.querySelector('.toggle-container');
         if (toggleContainer) toggleContainer.classList.add('disabled');
+        setAudioOptionsDisabled(true);
 
         if (customFilenameInput) customFilenameInput.disabled = true;
         if (clearFilenameBtn) clearFilenameBtn.disabled = true;
@@ -228,6 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const bodyData = { url, format };
+            if (format === 'mp3') {
+                bodyData.audioConversion = audioConversion;
+            }
             if (customFilename) {
                 bodyData.filename = customFilename;
             }
@@ -299,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (statusText) {
                         if (currentMaxProgress >= 100) {
                             const isMp3 = document.getElementById('format-toggle').checked;
-                            statusText.textContent = isMp3 ? 'Konvertuji na zvuk ...' : 'Dokončuji ...';
+                            statusText.textContent = isMp3 && currentAudioConversion === 'mp3' ? 'Konvertuji na zvuk ...' : 'Dokončuji ...';
                         } else {
                             statusText.textContent = `Stahuji... ${currentMaxProgress}%`;
                         }

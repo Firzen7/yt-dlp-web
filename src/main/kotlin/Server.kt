@@ -222,6 +222,9 @@ private suspend fun performDownload(call: RoutingCall) {
     val body = JSONObject(call.receiveText())
     val rawInputUrl = body.optString("url", "")
     val format = body.optString("format", "video")
+    val audioConversion = body.optString("audioConversion", "fastest")
+        .lowercase()
+        .takeIf { it == "fastest" || it == "mp3" } ?: "fastest"
     val customFilename = body.optString("filename", "").replace(Regex("[<>:\"/\\\\|?*\\x00-\\x1F]"), "")
 
     val url = rawInputUrl.sanitizeVideoUrl()
@@ -231,9 +234,9 @@ private suspend fun performDownload(call: RoutingCall) {
     }
 
     val taskId = UUID.randomUUID().toString()
-    Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format")
+    Logger.i("Received download request. Task ID: $taskId, URL: $url, Format: $format, Audio conversion: $audioConversion")
     PersistentLogger.logAction(LogLevel.INFO, session.username, "Started $format download of $url" +
-            " (custom name: $customFilename)")
+            " (audio conversion: $audioConversion, custom name: $customFilename)")
 
     tasks[taskId] = DownloadTask(status = "processing")
 
@@ -241,6 +244,7 @@ private suspend fun performDownload(call: RoutingCall) {
     val downloadJob = CoroutineScope(Dispatchers.IO).launch {
         try {
             val audioOnly = format == "mp3"
+            val forceMp3Conversion = audioOnly && audioConversion == "mp3"
             val taskDir = File(DOWNLOAD_DIRECTORY, taskId)
             if (!taskDir.exists()) taskDir.mkdirs()
 
@@ -249,6 +253,7 @@ private suspend fun performDownload(call: RoutingCall) {
                 url,
                 taskDir.absolutePath,
                 audioOnly,
+                forceMp3Conversion,
                 customName,
                 progressCallback = { percent ->
                     val currentTask = tasks[taskId]
@@ -285,12 +290,14 @@ private suspend fun performDownload(call: RoutingCall) {
                         )
 
                         PersistentLogger.logAction(LogLevel.INFO, session.username,
-                            "Completed $format download of $url (custom name: $customFilename)")
+                            "Completed $format download of $url (audio conversion: $audioConversion," +
+                                    " custom name: $customFilename)")
                     }
                 } else {
                     Logger.e("yt-dlp finished with exit code 0 but NO FILE was found in ${taskDir.absolutePath}")
                     PersistentLogger.logAction(LogLevel.ERROR, session.username,
-                        "Downloaded file not found for (format: $format, url: $url, custom name: $customFilename)")
+                        "Downloaded file not found for (format: $format, audio conversion: $audioConversion," +
+                                " url: $url, custom name: $customFilename)")
 
                     tasks[taskId] = DownloadTask(
                         status = "error",
@@ -300,7 +307,7 @@ private suspend fun performDownload(call: RoutingCall) {
             } else {
                 Logger.e("yt-dlp failed for taskId=$taskId. Exit code: $exitCode")
                 PersistentLogger.logAction(LogLevel.ERROR, session.username,
-                    "yt-dlp failed (exit-code: $exitCode, format: $format, url: $url," +
+                    "yt-dlp failed (exit-code: $exitCode, format: $format, audio conversion: $audioConversion, url: $url," +
                             " custom name: $customFilename)\n\n--- YT-DLP OUTPUT ---\n$output---------------------\n")
 
                 tasks[taskId] = DownloadTask(
@@ -319,7 +326,7 @@ private suspend fun performDownload(call: RoutingCall) {
         } catch (e: Exception) {
             Logger.e("Exception during download for taskId=$taskId: ${e.message}", e)
             PersistentLogger.logAction(LogLevel.ERROR, session.username,
-                "Exception during download! (msg: ${e.message}, format: $format, url: $url," +
+                "Exception during download! (msg: ${e.message}, format: $format, audio conversion: $audioConversion, url: $url," +
                         " custom name: $customFilename)")
 
             tasks[taskId] = DownloadTask(
@@ -581,6 +588,7 @@ private suspend fun fetchVideoTitle(url: String) : String? {
 private fun downloadMedia(rawUrl: String,
                           outputDir: String,
                           audioOnly: Boolean = false,
+                          forceMp3Conversion: Boolean = false,
                           customFilename: String? = null,
                           progressCallback: (Double?) -> Unit = {},
                           processCallback: (Process?) -> Unit = {}) : Pair<Int, String> {
@@ -600,14 +608,23 @@ private fun downloadMedia(rawUrl: String,
     }
 
     if ((dir.isDirectory || dir.mkdirs()) && dir.canWrite() && dir.canRead()) {
-        return downloadMedia(Url(rawUrl), dir, audioOnly, customFilename, progressCallback, processCallback)
+        return downloadMedia(
+            Url(rawUrl),
+            dir,
+            audioOnly,
+            forceMp3Conversion,
+            customFilename,
+            progressCallback,
+            processCallback
+        )
     } else {
         Logger.e("Error! $dir is not usable directory!")
         return Pair(-1, "Error! $dir is not usable directory!")
     }
 }
 
-private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customFilename: String?,
+private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, forceMp3Conversion: Boolean,
+                          customFilename: String?,
                           progressCallback: (Double?) -> Unit,
                           processCallback: (Process?) -> Unit) : Pair<Int, String> {
 
@@ -625,7 +642,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
             commandList.add("$customFilename.%(ext)s")
         }
         if (audioOnly) {
-            if(slowAudioConversion) {
+            if(forceMp3Conversion || slowAudioConversion) {
                 commandList.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
             }
             else {
@@ -639,7 +656,7 @@ private fun downloadMedia(url: Url, outputDir: File, audioOnly: Boolean, customF
 
         val exitCode = runProcess(commandList, outputDir, fullLog, progressCallback, processCallback)
 
-        if(audioOnly && exitCode != 0 && !slowAudioConversion) {
+        if(audioOnly && exitCode != 0 && !slowAudioConversion && !forceMp3Conversion) {
             return runYtDlp(true)
         }
         else {
