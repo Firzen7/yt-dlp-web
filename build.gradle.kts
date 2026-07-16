@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "2.8"
+version = "2.9"
 
 repositories {
     mavenCentral()
@@ -22,6 +22,7 @@ tasks.named<JavaExec>("run") {
 val generateBuildConfig = tasks.register("generateBuildConfig") {
     val outputDir = layout.buildDirectory.dir("generated/buildconfig")
     inputs.property("version", version)
+    inputs.property("template", "runtime-version-val-v1")
     outputs.dir(outputDir)
 
     doLast {
@@ -32,15 +33,11 @@ val generateBuildConfig = tasks.register("generateBuildConfig") {
             package net.firzen.web
 
             object BuildConfig {
-                const val VERSION = "$version"
+                val VERSION: String = "$version"
             }
             """.trimIndent()
         )
     }
-}
-
-sourceSets.main {
-    java.srcDir(generateBuildConfig)
 }
 
 ktor {
@@ -82,5 +79,11 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
+    sourceSets {
+        main {
+            kotlin.srcDir("src/main/kotlin")
+            kotlin.srcDir(generateBuildConfig)
+        }
+    }
     jvmToolchain(17)
 }

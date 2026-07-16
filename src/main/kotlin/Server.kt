@@ -53,6 +53,8 @@ private val tasks = ConcurrentHashMap<String, DownloadTask>()
 private val taskJobs = ConcurrentHashMap<String, Job>()
 private val taskProcesses = ConcurrentHashMap<String, Process>()
 
+private fun appVersion(): String = BuildConfig.VERSION
+
 fun startServer() {
     Logger.i("startServer()")
 
@@ -74,7 +76,7 @@ fun startServer() {
                 val obj = JSONObject()
                 obj.put("status", code.value)
                 obj.put("message", cause.message)
-                obj.put("version", BuildConfig.VERSION)
+                obj.put("version", appVersion())
 
                 call.respondText(
                     text = obj.toString(),
@@ -104,7 +106,7 @@ fun startServer() {
             staticResources("/", "static")
         }
 
-        Logger.i("yt-dlp-web version ${BuildConfig.VERSION} started")
+        Logger.i("yt-dlp-web version ${appVersion()} started")
     }.start(wait = true)
 }
 
@@ -441,7 +443,7 @@ private suspend fun provideDownloadedFile(call: RoutingCall) {
 }
 
 private suspend fun provideVersion(call: RoutingCall) {
-    call.respondJson("""{"version": "${BuildConfig.VERSION}"}""")
+    call.respondJson("""{"version": "${appVersion()}"}""")
 }
 
 private suspend fun provideWebpage(call: RoutingCall) {
