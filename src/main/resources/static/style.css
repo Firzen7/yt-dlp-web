@@ -639,6 +639,47 @@ input:disabled+.slider {
 .modal-card {
     max-width: 450px !important;
     padding: 2.5rem 3rem !important;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+}
+
+.modal-title {
+    font-size: 1.8rem;
+    margin-bottom: 2rem;
+}
+
+.password-form {
+    gap: 1.5rem;
+}
+
+.password-actions {
+    width: 100%;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.password-actions .btn-primary,
+.password-actions .btn-secondary {
+    position: static;
+    flex: 1;
+    width: auto;
+    max-width: 140px;
+    height: 50px;
+}
+
+.password-feedback {
+    position: static;
+    max-width: 100%;
+    height: auto;
+    min-height: 41px;
+    padding: 10px 15px;
+    font-size: 0.95rem;
+}
+
+.password-feedback.hidden {
+    display: none;
 }
 
 .close-modal-btn {
@@ -723,11 +764,7 @@ input:disabled+.slider {
 
 .strength-text-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     font-size: 0.8rem;
     color: var(--text-muted);
-}
-
-#password-strength-req {
-    font-weight: 500;
 }

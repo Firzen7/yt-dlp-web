@@ -108,9 +108,9 @@
             <button type="button" class="close-modal-btn" id="close-password-btn" title="Zavřít">
                 <i class="fa-solid fa-xmark"></i>
             </button>
-            <h2 class="modal-title neon-text" style="font-size: 1.8rem; margin-bottom: 2rem;">Změnit heslo</h2>
+            <h2 class="modal-title neon-text">Změnit heslo</h2>
             
-            <form id="change-password-form" class="content-wrapper" style="gap: 1.5rem;">
+            <form id="change-password-form" class="content-wrapper password-form">
                 <div class="input-group">
                     <input type="password" id="current-password" placeholder="Aktuální heslo..." required />
                 </div>
@@ -124,8 +124,7 @@
                         <div id="password-strength-bar" class="strength-bar"></div>
                     </div>
                     <div class="strength-text-row">
-                        <span id="password-strength-label">Síla: Příliš slabé (0 bitů)</span>
-                        <span id="password-strength-req">Min. 45 bitů</span>
+                        <span id="password-strength-label">Síla: Příliš slabé</span>
                     </div>
                 </div>
 
@@ -133,15 +132,15 @@
                     <input type="password" id="confirm-new-password" placeholder="Potvrdit nové heslo..." required />
                 </div>
 
-                <div class="action-container" style="margin-top: 1rem; display: flex; gap: 15px; width: 100%; justify-content: center; position: static; height: auto;">
-                    <button type="button" id="cancel-password-btn" class="btn-secondary" style="flex: 1; max-width: 140px; height: 50px;">ZRUŠIT</button>
-                    <button type="submit" id="save-password-btn" class="btn-primary" style="flex: 1; max-width: 140px; height: 50px; position: static;">ULOŽIT</button>
+                <div class="password-actions">
+                    <button type="button" id="cancel-password-btn" class="btn-secondary">ZRUŠIT</button>
+                    <button type="submit" id="save-password-btn" class="btn-primary">ULOŽIT</button>
                 </div>
 
-                <div id="password-error-message" class="error-message hidden" style="position: static; max-width: 100%; height: auto; padding: 10px 15px; margin-top: 10px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center;">
+                <div id="password-error-message" class="error-message password-feedback hidden">
                     Něco se pokazilo.
                 </div>
-                <div id="password-success-message" class="btn-success hidden" style="position: static; max-width: 100%; height: auto; padding: 10px 15px; margin-top: 10px; font-size: 0.95rem; background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%); display: flex; align-items: center; justify-content: center;">
+                <div id="password-success-message" class="btn-success password-feedback hidden">
                     Heslo bylo úspěšně změněno. Odhlašuji...
                 </div>
             </form>

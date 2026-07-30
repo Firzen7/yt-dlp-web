@@ -464,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const strengthLabel = document.getElementById('password-strength-label');
     const savePasswordBtn = document.getElementById('save-password-btn');
 
+    const minimumPasswordEntropy = 45;
     let currentEntropy = 0;
     let entropyTimeout = null;
 
@@ -495,8 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateStrengthUI = (entropy) => {
-        const maxScale = 80;
-        const percentage = Math.min((entropy / maxScale) * 100, 100);
+        const percentage = Math.min((entropy / minimumPasswordEntropy) * 100, 100);
         
         if (strengthBar) {
             strengthBar.style.width = `${percentage}%`;
@@ -520,19 +520,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (strengthLabel) {
-            let labelText = `Příliš slabé (${entropy.toFixed(1)} bitů)`;
+            let labelText = 'Příliš slabé';
             if (entropy >= 65) {
-                labelText = `Velmi silné (${entropy.toFixed(1)} bitů)`;
-            } else if (entropy >= 45) {
-                labelText = `Silné (${entropy.toFixed(1)} bitů)`;
+                labelText = 'Velmi silné';
+            } else if (entropy >= minimumPasswordEntropy) {
+                labelText = 'Silné';
             } else if (entropy >= 25) {
-                labelText = `Slabé (${entropy.toFixed(1)} bitů)`;
+                labelText = 'Slabé';
             }
             strengthLabel.textContent = `Síla: ${labelText}`;
         }
 
         if (savePasswordBtn) {
-            savePasswordBtn.disabled = (entropy < 45);
+            savePasswordBtn.disabled = (entropy < minimumPasswordEntropy);
         }
     };
 
@@ -592,8 +592,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const newPassword = document.getElementById('new-password').value;
         const confirmNewPassword = document.getElementById('confirm-new-password').value;
 
-        if (currentEntropy < 45) {
-            passwordErrorEl.textContent = 'Nové heslo musí mít alespoň 45 bitů entropie.';
+        if (currentEntropy < minimumPasswordEntropy) {
+            passwordErrorEl.textContent = 'Nové heslo není dostatečně silné.';
             passwordErrorEl.classList.remove('hidden');
             return;
         }
