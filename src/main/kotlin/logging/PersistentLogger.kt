@@ -6,7 +6,13 @@ import net.firzen.web.dateTimeString
 import org.joda.time.DateTime
 import java.io.File
 
+/**
+ * Appends timestamped application actions to a separate log file for each user.
+ */
 object PersistentLogger {
+    /**
+     * Records an action at the requested severity under the resolved username.
+     */
     fun logAction(logLevel: LogLevel, rawUser: String?, action: String) {
         val currentTime = DateTime().dateTimeString()
         val user = rawUser ?: UNKNOWN_USER
@@ -24,8 +30,7 @@ object PersistentLogger {
             } else {
                 Logger.e("Could not write into logfile! Path: $logPath")
             }
-        }
-        catch (_: Exception) {
+        } catch (_: Exception) {
             Logger.e("Could not write into logfile! Path: $logPath")
         }
     }

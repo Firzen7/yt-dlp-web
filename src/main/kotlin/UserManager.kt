@@ -17,6 +17,9 @@ import java.security.SecureRandom
  */
 class UserManager(private val usersFile: File) {
 
+    /**
+     * Defines the scrypt parameters and byte lengths used for stored credentials.
+     */
     companion object {
         // Scrypt parameters matching Werkzeug defaults
         private const val SCRYPT_N = 32768
@@ -161,16 +164,25 @@ class UserManager(private val usersFile: File) {
 
     // -- Internal helpers --
 
+    /**
+     * Generates a random URL-safe salt compatible with Werkzeug password hashes.
+     */
     private fun generateSalt(): ByteArray {
         Logger.i("generateSalt()")
+
         // Generate random bytes and encode as base64url-safe characters (matching Werkzeug)
         val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         val random = SecureRandom()
+
         return ByteArray(SALT_LENGTH) { chars[random.nextInt(chars.length)].code.toByte() }
     }
 
+    /**
+     * Derives a fixed-length scrypt key from a password and salt.
+     */
     private fun hashPassword(password: String, salt: ByteArray): ByteArray {
         Logger.i("hashPassword()")
+
         return SCrypt.generate(
             password.toByteArray(Charsets.UTF_8),
             salt,
@@ -179,8 +191,12 @@ class UserManager(private val usersFile: File) {
         )
     }
 
+    /**
+     * Reads all valid credential records while ignoring blank or malformed lines.
+     */
     private fun readEntries(): List<UserEntry> {
         Logger.i("readEntries()")
+
         if (!usersFile.exists()) return emptyList()
 
         return usersFile.readLines()
@@ -244,6 +260,9 @@ class UserManager(private val usersFile: File) {
         return entropy.toFloat()
     }
 
+    /**
+     * Represents one parsed scrypt credential record from the users file.
+     */
     private data class UserEntry(
         val username: String,
         val n: Int,
@@ -251,16 +270,51 @@ class UserManager(private val usersFile: File) {
         val p: Int,
         val salt: String,
         val keyBytes: ByteArray
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
 
+            other as UserEntry
+
+            if (n != other.n) return false
+            if (r != other.r) return false
+            if (p != other.p) return false
+            if (username != other.username) return false
+            if (salt != other.salt) return false
+            if (!keyBytes.contentEquals(other.keyBytes)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = n
+            result = 31 * result + r
+            result = 31 * result + p
+            result = 31 * result + username.hashCode()
+            result = 31 * result + salt.hashCode()
+            result = 31 * result + keyBytes.contentHashCode()
+            return result
+        }
+    }
+
+    /**
+     * Encodes this byte array as lowercase hexadecimal text.
+     */
     private fun ByteArray.toHexString(): String {
         Logger.i("toHexString()")
+
         return joinToString("") { "%02x".format(it) }
     }
 
+    /**
+     * Decodes an even-length hexadecimal string into bytes.
+     */
     private fun String.hexToByteArray(): ByteArray {
         Logger.i("hexToByteArray()")
+
         check(length % 2 == 0) { "Hex string must have even length" }
+
         return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }
 }

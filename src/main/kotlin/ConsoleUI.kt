@@ -3,16 +3,25 @@ package net.firzen.web
 import java.io.Console
 import java.io.File
 
+/**
+ * Keeps a password and its confirmation together so both character arrays can be erased after use.
+ */
 private data class PasswordInput(
     val value: String,
     private val passwordChars: CharArray,
     private val confirmationChars: CharArray
 ) {
+    /**
+     * Overwrites both password arrays to reduce how long sensitive values remain in memory.
+     */
     fun clear() {
         passwordChars.fill(' ')
         confirmationChars.fill(' ')
     }
 
+    /**
+     * Compares password inputs by their text and by the contents of both backing arrays.
+     */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -26,14 +35,22 @@ private data class PasswordInput(
         return true
     }
 
+    /**
+     * Produces a hash code that matches the content-based equality check.
+     */
     override fun hashCode(): Int {
         var result = value.hashCode()
+
         result = 31 * result + passwordChars.contentHashCode()
         result = 31 * result + confirmationChars.contentHashCode()
+
         return result
     }
 }
 
+/**
+ * Reads a new user's credentials from the console and creates the account.
+ */
 fun addUser() {
     val userManager = UserManager(File(USERS_FILE))
     val console = availableConsole() ?: return
@@ -55,8 +72,12 @@ fun addUser() {
     }
 }
 
+/**
+ * Reads a replacement password from the console and applies it to an existing account.
+ */
 fun changePassword(username: String) {
     val userManager = UserManager(File(USERS_FILE))
+
     if (!userManager.userExists(username)) {
         println("Error: User '$username' does not exist.")
         return
@@ -79,6 +100,9 @@ fun changePassword(username: String) {
     }
 }
 
+/**
+ * Returns the active system console or explains why an interactive command cannot continue.
+ */
 private fun availableConsole(): Console? {
     val console = System.console()
 
@@ -89,6 +113,9 @@ private fun availableConsole(): Console? {
     return console
 }
 
+/**
+ * Prompts for a username and rejects empty or reserved names.
+ */
 private fun readNewUsername(console: Console): String? {
     val username = console.readLine("Enter username: ")
 
@@ -105,6 +132,9 @@ private fun readNewUsername(console: Console): String? {
     return username
 }
 
+/**
+ * Reads and validates a password together with its confirmation.
+ */
 private fun readConfirmedPassword(
     console: Console,
     prompt: String,
@@ -134,6 +164,9 @@ private fun readConfirmedPassword(
     return PasswordInput(String(password), password, confirmation)
 }
 
+/**
+ * Overwrites every password array that was successfully read from the console.
+ */
 private fun clearPasswordArrays(vararg arrays: CharArray?) {
     arrays.forEach { it?.fill(' ') }
 }

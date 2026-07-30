@@ -8,10 +8,16 @@ import kotlinx.coroutines.withTimeout
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 
-suspend fun runProcess(command: List<String>, outputDir: File, fullLog: StringBuilder,
-                       progressCallback: (Double?) -> Unit,
-                       processCallback: (Process?) -> Unit = {}) : Int {
-
+/**
+ * Runs a process in the given directory while collecting output and reporting download progress.
+ */
+suspend fun runProcess(
+    command: List<String>,
+    outputDir: File,
+    fullLog: StringBuilder,
+    progressCallback: (Double?) -> Unit,
+    processCallback: (Process?) -> Unit = {}
+): Int {
     val process = ProcessBuilder(command)
         .directory(outputDir)
         .redirectErrorStream(false)
@@ -42,6 +48,9 @@ suspend fun runProcess(command: List<String>, outputDir: File, fullLog: StringBu
     }
 }
 
+/**
+ * Waits for a process to finish and terminates its process tree on timeout or cancellation.
+ */
 suspend fun Process.await(timeoutMs: Long): Int {
     return try {
         withTimeout(timeoutMs) {
@@ -60,6 +69,9 @@ suspend fun Process.await(timeoutMs: Long): Int {
     }
 }
 
+/**
+ * Requests graceful termination of a process tree before forcibly stopping any survivors.
+ */
 fun destroyProcessTree(process: Process) {
     val handle = process.toHandle()
 

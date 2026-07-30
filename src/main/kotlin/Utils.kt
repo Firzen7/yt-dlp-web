@@ -6,6 +6,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 
+/**
+ * Downloads a URL synchronously and returns its response body as text.
+ */
 @Throws(IOException::class)
 fun downloadFile(urlString: String, client: OkHttpClient): String? {
     return try {
@@ -23,8 +26,7 @@ fun downloadFile(urlString: String, client: OkHttpClient): String? {
             Logger.d("++ Downloading file complete")
 
             rsp
-        }
-        finally {
+        } finally {
             response?.close()
         }
     } catch (e: Exception) {

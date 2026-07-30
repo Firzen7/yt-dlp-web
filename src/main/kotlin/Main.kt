@@ -2,8 +2,12 @@ package net.firzen.web
 
 import net.firzen.web.logging.Logger
 
+/**
+ * Dispatches the command-line request to the server or user-management command.
+ */
 fun main(args: Array<String>) {
     Logger.i("main()")
+
     if (args.isEmpty()) {
         println("Missing command. Use 'server' to start the server, 'adduser' to add a new user, or 'passwd <username>' to change a user's password.")
         return
@@ -30,5 +34,3 @@ fun main(args: Array<String>) {
         }
     }
 }
-
- 
