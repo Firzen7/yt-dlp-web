@@ -1,5 +1,6 @@
-let downloaderUrl = "https://stahovac.firzen.net/";
-//let downloaderUrl = "http://localhost:8080/";
+importScripts("config.local.js");
+
+let downloaderUrl = globalThis.YTDLP_WEB_CONFIG.downloaderUrl;
 
 // Load saved config on startup
 chrome.storage.sync.get(['downloaderUrl'], function (result) {
