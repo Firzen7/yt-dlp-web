@@ -289,6 +289,10 @@ private suspend fun readPasswordChangeRequest(call: RoutingCall): PasswordChange
  * Returns a user-facing validation message when a proposed password is invalid.
  */
 private fun validatePasswordChange(request: PasswordChangeRequest): String? {
+    if (request.currentPassword.isEmpty()) {
+        return "Aktuální heslo nesmí být prázdné."
+    }
+
     if (request.newPassword.isEmpty()) {
         return "Nové heslo nesmí být prázdné."
     }

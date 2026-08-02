@@ -459,36 +459,54 @@ document.addEventListener('DOMContentLoaded', () => {
     const changePasswordForm = document.getElementById('change-password-form');
     const passwordErrorEl = document.getElementById('password-error-message');
     const passwordSuccessEl = document.getElementById('password-success-message');
+    const currentPasswordInput = document.getElementById('current-password');
     const newPasswordInput = document.getElementById('new-password');
+    const confirmNewPasswordInput = document.getElementById('confirm-new-password');
     const strengthBar = document.getElementById('password-strength-bar');
     const strengthLabel = document.getElementById('password-strength-label');
     const savePasswordBtn = document.getElementById('save-password-btn');
 
     const minimumPasswordEntropy = 45;
     let currentEntropy = 0;
+    let measuredPassword = '';
     let entropyTimeout = null;
+    let entropyRequestId = 0;
+
+    const requestPasswordEntropy = async (password) => {
+        const response = await fetch('/api/password-entropy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
+        if (!response.ok) {
+            throw new Error('Password entropy request failed');
+        }
+
+        const data = await response.json();
+        return Number(data.entropy) || 0;
+    };
 
     const checkPasswordStrength = (password) => {
+        if (entropyTimeout) clearTimeout(entropyTimeout);
+
+        const requestId = ++entropyRequestId;
+        currentEntropy = 0;
+        measuredPassword = '';
+        updateStrengthUI(0);
+
         if (!password) {
-            currentEntropy = 0;
-            updateStrengthUI(0);
             return;
         }
 
-        if (entropyTimeout) clearTimeout(entropyTimeout);
-
         entropyTimeout = setTimeout(async () => {
             try {
-                const response = await fetch('/api/password-entropy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    currentEntropy = data.entropy || 0;
-                    updateStrengthUI(currentEntropy);
-                }
+                const entropy = await requestPasswordEntropy(password);
+                if (requestId !== entropyRequestId) return;
+
+                currentEntropy = entropy;
+                measuredPassword = password;
+                updateStrengthUI(entropy);
             } catch (err) {
                 console.error('Error fetching password entropy:', err);
             }
@@ -507,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (entropy >= 65) {
                 color = '#00c3ff'; // Cyan
                 glowColor = 'rgba(0, 195, 255, 0.5)';
-            } else if (entropy >= 45) {
+            } else if (entropy >= minimumPasswordEntropy) {
                 color = '#34c759'; // Green
                 glowColor = 'rgba(52, 199, 89, 0.5)';
             } else if (entropy >= 25) {
@@ -530,32 +548,90 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             strengthLabel.textContent = `Síla: ${labelText}`;
         }
+    };
 
-        if (savePasswordBtn) {
-            savePasswordBtn.disabled = (entropy < minimumPasswordEntropy);
+    const clearPasswordFeedback = () => {
+        passwordErrorEl.classList.add('hidden');
+        passwordSuccessEl.classList.add('hidden');
+
+        currentPasswordInput.removeAttribute('aria-invalid');
+        newPasswordInput.removeAttribute('aria-invalid');
+        confirmNewPasswordInput.removeAttribute('aria-invalid');
+    };
+
+    const showPasswordError = (message, input = null) => {
+        passwordSuccessEl.classList.add('hidden');
+        passwordErrorEl.textContent = message;
+        passwordErrorEl.classList.remove('hidden');
+
+        if (input) {
+            input.setAttribute('aria-invalid', 'true');
+            input.focus();
+        }
+    };
+
+    const validatePasswordFields = (currentPassword, newPassword, confirmation) => {
+        if (!currentPassword) {
+            return { message: 'Zadejte aktuální heslo.', input: currentPasswordInput };
+        }
+
+        if (!newPassword) {
+            return { message: 'Zadejte nové heslo.', input: newPasswordInput };
+        }
+
+        if (!confirmation) {
+            return { message: 'Potvrďte nové heslo.', input: confirmNewPasswordInput };
+        }
+
+        if (newPassword !== confirmation) {
+            return { message: 'Nová hesla se neshodují.', input: confirmNewPasswordInput };
+        }
+
+        return null;
+    };
+
+    const ensureCurrentEntropy = async (password) => {
+        if (measuredPassword === password) return true;
+
+        if (entropyTimeout) clearTimeout(entropyTimeout);
+        const requestId = ++entropyRequestId;
+
+        try {
+            const entropy = await requestPasswordEntropy(password);
+            if (requestId !== entropyRequestId) return false;
+
+            currentEntropy = entropy;
+            measuredPassword = password;
+            updateStrengthUI(entropy);
+            return true;
+        } catch (err) {
+            console.error('Error fetching password entropy:', err);
+            return false;
         }
     };
 
     const showPasswordModal = () => {
         changePasswordModal.classList.remove('hidden');
-        document.getElementById('current-password').value = '';
-        document.getElementById('new-password').value = '';
-        document.getElementById('confirm-new-password').value = '';
-        passwordErrorEl.classList.add('hidden');
-        passwordSuccessEl.classList.add('hidden');
+        currentPasswordInput.value = '';
+        newPasswordInput.value = '';
+        confirmNewPasswordInput.value = '';
+        clearPasswordFeedback();
         
         // Re-enable inputs if they were disabled previously
-        document.getElementById('current-password').disabled = false;
-        document.getElementById('new-password').disabled = false;
-        document.getElementById('confirm-new-password').disabled = false;
-        document.getElementById('save-password-btn').disabled = false;
+        currentPasswordInput.disabled = false;
+        newPasswordInput.disabled = false;
+        confirmNewPasswordInput.disabled = false;
+        savePasswordBtn.disabled = false;
         document.getElementById('cancel-password-btn').disabled = false;
         if (closePasswordBtn) closePasswordBtn.disabled = false;
 
+        if (entropyTimeout) clearTimeout(entropyTimeout);
+        entropyRequestId += 1;
         currentEntropy = 0;
+        measuredPassword = '';
         updateStrengthUI(0);
 
-        document.getElementById('current-password').focus();
+        currentPasswordInput.focus();
     };
 
     const hidePasswordModal = () => {
@@ -564,6 +640,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     newPasswordInput?.addEventListener('input', (e) => {
         checkPasswordStrength(e.target.value);
+    });
+
+    [currentPasswordInput, newPasswordInput, confirmNewPasswordInput].forEach((input) => {
+        input.addEventListener('input', () => {
+            input.removeAttribute('aria-invalid');
+            passwordErrorEl.classList.add('hidden');
+        });
     });
 
     changePasswordBtn?.addEventListener('click', (e) => {
@@ -585,24 +668,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     changePasswordForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        passwordErrorEl.classList.add('hidden');
-        passwordSuccessEl.classList.add('hidden');
+        clearPasswordFeedback();
 
-        const currentPassword = document.getElementById('current-password').value;
-        const newPassword = document.getElementById('new-password').value;
-        const confirmNewPassword = document.getElementById('confirm-new-password').value;
+        const currentPassword = currentPasswordInput.value;
+        const newPassword = newPasswordInput.value;
+        const confirmNewPassword = confirmNewPasswordInput.value;
+        const validationError = validatePasswordFields(
+            currentPassword,
+            newPassword,
+            confirmNewPassword
+        );
+
+        if (validationError) {
+            showPasswordError(validationError.message, validationError.input);
+            return;
+        }
+
+        if (!await ensureCurrentEntropy(newPassword)) {
+            showPasswordError('Sílu nového hesla se nepodařilo ověřit. Zkuste to znovu.');
+            return;
+        }
 
         if (currentEntropy < minimumPasswordEntropy) {
-            passwordErrorEl.textContent = 'Nové heslo není dostatečně silné.';
-            passwordErrorEl.classList.remove('hidden');
+            showPasswordError('Nové heslo není dostatečně silné.', newPasswordInput);
             return;
         }
 
-        if (newPassword !== confirmNewPassword) {
-            passwordErrorEl.textContent = 'Nová hesla se neshodují.';
-            passwordErrorEl.classList.remove('hidden');
-            return;
-        }
+        savePasswordBtn.disabled = true;
 
         try {
             const response = await fetch('/api/change-password', {
@@ -611,17 +703,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
             });
 
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
+
+            if (response.status === 401) {
+                window.location.href = '/login.html';
+                return;
+            }
 
             if (response.ok) {
                 passwordSuccessEl.textContent = 'Heslo bylo úspěšně změněno. Odhlašuji...';
                 passwordSuccessEl.classList.remove('hidden');
                 
                 // Disable inputs and buttons
-                document.getElementById('current-password').disabled = true;
-                document.getElementById('new-password').disabled = true;
-                document.getElementById('confirm-new-password').disabled = true;
-                document.getElementById('save-password-btn').disabled = true;
+                currentPasswordInput.disabled = true;
+                newPasswordInput.disabled = true;
+                confirmNewPasswordInput.disabled = true;
                 document.getElementById('cancel-password-btn').disabled = true;
                 if (closePasswordBtn) closePasswordBtn.disabled = true;
 
@@ -630,13 +726,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = '/login.html';
                 }, 2000);
             } else {
-                passwordErrorEl.textContent = data.error || 'Nepodařilo se změnit heslo.';
-                passwordErrorEl.classList.remove('hidden');
+                const message = data.error || 'Nepodařilo se změnit heslo.';
+                const input = message === 'Nesprávné aktuální heslo.'
+                    ? currentPasswordInput
+                    : null;
+
+                showPasswordError(message, input);
+                savePasswordBtn.disabled = false;
             }
         } catch (err) {
             console.error('Failed to change password:', err);
-            passwordErrorEl.textContent = 'Síťová chyba. Zkuste to prosím znovu.';
-            passwordErrorEl.classList.remove('hidden');
+            showPasswordError('Síťová chyba. Zkuste to prosím znovu.');
+            savePasswordBtn.disabled = false;
         }
     });
 });

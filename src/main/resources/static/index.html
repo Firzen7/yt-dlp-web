@@ -110,7 +110,7 @@
             </button>
             <h2 class="modal-title neon-text">Změnit heslo</h2>
             
-            <form id="change-password-form" class="content-wrapper password-form">
+            <form id="change-password-form" class="content-wrapper password-form" novalidate>
                 <div class="input-group">
                     <input type="password" id="current-password" placeholder="Aktuální heslo..." required />
                 </div>
@@ -137,10 +137,10 @@
                     <button type="submit" id="save-password-btn" class="btn-primary">ULOŽIT</button>
                 </div>
 
-                <div id="password-error-message" class="error-message password-feedback hidden">
+                <div id="password-error-message" class="error-message password-feedback hidden" role="alert">
                     Něco se pokazilo.
                 </div>
-                <div id="password-success-message" class="btn-success password-feedback hidden">
+                <div id="password-success-message" class="btn-success password-feedback hidden" role="status">
                     Heslo bylo úspěšně změněno. Odhlašuji...
                 </div>
             </form>
