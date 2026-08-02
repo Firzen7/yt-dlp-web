@@ -26,6 +26,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cancelDownloadBtn = document.getElementById('cancel-download-btn');
     const logoutBtn = document.getElementById('logout-btn');
 
+    const urlPlaceholderKey = () => {
+        const platform = navigator.userAgentData?.platform || navigator.platform || '';
+        const userAgent = navigator.userAgent || '';
+        const touchMac = /mac/i.test(platform) && navigator.maxTouchPoints > 1;
+        const mobile = /android|iphone|ipad|ipod/i.test(userAgent) || touchMac;
+
+        if (mobile) return 'download.urlPlaceholder.generic';
+        if (/mac/i.test(platform)) return 'download.urlPlaceholder.mac';
+        if (/win|linux|cros/i.test(`${platform} ${userAgent}`)) {
+            return 'download.urlPlaceholder.ctrl';
+        }
+
+        return 'download.urlPlaceholder.generic';
+    };
+
+    const applyUrlPlaceholder = () => {
+        if (!urlInput) return;
+
+        const key = urlPlaceholderKey();
+        urlInput.dataset.i18nPlaceholder = key;
+        urlInput.placeholder = t(key);
+    };
+
+    applyUrlPlaceholder();
+
     const setChangePasswordDisabled = (disabled) => {
         const btn = document.getElementById('change-password-btn');
         if (!btn) return;
