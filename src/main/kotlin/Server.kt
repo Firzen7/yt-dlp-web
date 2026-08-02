@@ -5,6 +5,8 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.http.content.*
 import io.ktor.server.netty.*
+import io.ktor.server.plugins.forwardedheaders.*
+import io.ktor.server.plugins.origin
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -117,14 +119,14 @@ private const val MEDIA_FORMAT_TEMPLATE =
 private fun appVersion(): String = BuildConfig.VERSION
 
 /**
- * Returns the direct peer address associated with this HTTP connection.
+ * Returns the client address reconstructed from trusted proxy headers.
  */
 private fun ApplicationCall.clientIpAddress(): String {
-    return request.local.remoteAddress
+    return request.origin.remoteAddress
 }
 
 /**
- * Records a web action with the direct network address of its client.
+ * Records a web action with the resolved network address of its client.
  */
 private fun ApplicationCall.logPersistentAction(
     logLevel: LogLevel,
@@ -156,6 +158,10 @@ fun startServer() {
  * Installs server features, registers routes, and records that startup completed.
  */
 private fun Application.configureServer(userManager: UserManager) {
+    install(XForwardedHeaders) {
+        useLastProxy()
+    }
+
     configureSessions()
     configureErrorHandling()
     configureRoutes(userManager)
