@@ -70,11 +70,12 @@ private data class DownloadRequest(
 }
 
 /**
- * Carries the task identity, requesting user, and options through the download workflow.
+ * Carries task identity, user, client address, and options through the download workflow.
  */
 private data class DownloadContext(
     val taskId: String,
     val username: String,
+    val clientAddress: String,
     val request: DownloadRequest
 )
 
@@ -107,6 +108,29 @@ private val taskProcesses = ConcurrentHashMap<String, Process>()
  * Returns the application version generated from the Gradle project version.
  */
 private fun appVersion(): String = BuildConfig.VERSION
+
+/**
+ * Returns the direct peer address associated with this HTTP connection.
+ */
+private fun ApplicationCall.clientIpAddress(): String {
+    return request.local.remoteAddress
+}
+
+/**
+ * Records a web action with the direct network address of its client.
+ */
+private fun ApplicationCall.logPersistentAction(
+    logLevel: LogLevel,
+    username: String?,
+    action: String
+) {
+    PersistentLogger.logAction(
+        logLevel,
+        username,
+        clientIpAddress(),
+        action
+    )
+}
 
 /**
  * Creates the user manager and starts the embedded HTTP server.
@@ -218,7 +242,7 @@ private suspend fun completeLogin(call: RoutingCall, username: String) {
     call.sessions.set(UserSession(username))
     call.respondJson("""{"ok": true}""")
 
-    PersistentLogger.logAction(LogLevel.INFO, username, "Successful login")
+    call.logPersistentAction(LogLevel.INFO, username, "Successful login")
 }
 
 /**
@@ -230,7 +254,7 @@ private suspend fun rejectLogin(call: RoutingCall, username: String) {
         HttpStatusCode.Unauthorized
     )
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.WARNING,
         UNKNOWN_USER,
         "Login failed (user: $username)"
@@ -246,7 +270,7 @@ private suspend fun performLogout(call: RoutingCall) {
     call.sessions.clear<UserSession>()
     call.respondJson("""{"ok": true}""")
 
-    PersistentLogger.logAction(LogLevel.INFO, session?.username, "Logout")
+    call.logPersistentAction(LogLevel.INFO, session?.username, "Logout")
 }
 
 /**
@@ -330,7 +354,7 @@ private suspend fun completePasswordChange(call: RoutingCall, username: String) 
     call.sessions.clear<UserSession>()
     call.respondJson("""{"ok": true}""")
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.INFO,
         username,
         "Password changed successfully. User logged out."
@@ -349,7 +373,7 @@ private suspend fun rejectPasswordChange(
 
     call.respondJson("""{"error": "$message"}""", HttpStatusCode.BadRequest)
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.WARNING,
         username,
         "Failed to change password: ${error.message}"
@@ -369,7 +393,7 @@ private suspend fun failPasswordChange(
         HttpStatusCode.InternalServerError
     )
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.ERROR,
         username,
         "Exception while changing password: ${error.message}"
@@ -387,7 +411,7 @@ private suspend fun handlePasswordEntropy(userManager: UserManager, call: Routin
 
         call.respondJson("""{"entropy": ${userManager.computeEntropy(password)}}""")
     } catch (_: Exception) {
-        PersistentLogger.logAction(
+        call.logPersistentAction(
             LogLevel.WARNING,
             username,
             "Error while computing password entropy!"
@@ -427,7 +451,11 @@ private suspend fun performDownload(call: RoutingCall) {
         )
     }
 
-    val taskId = startDownloadTask(username, request)
+    val taskId = startDownloadTask(
+        username,
+        call.clientIpAddress(),
+        request
+    )
 
     call.respondJson("""{"task_id": "$taskId"}""")
 }
@@ -441,7 +469,7 @@ private suspend fun requireDownloadUser(call: RoutingCall): String? {
     if (username == null) {
         Logger.e("User not logged in!")
 
-        PersistentLogger.logAction(
+        call.logPersistentAction(
             LogLevel.WARNING,
             UNKNOWN_USER,
             "Non-logged user attempt to download"
@@ -483,9 +511,13 @@ private fun sanitizeFilename(filename: String): String {
 /**
  * Creates and launches a tracked background task for a download request.
  */
-private fun startDownloadTask(username: String, request: DownloadRequest): String {
+private fun startDownloadTask(
+    username: String,
+    clientAddress: String,
+    request: DownloadRequest
+): String {
     val taskId = UUID.randomUUID().toString()
-    val context = DownloadContext(taskId, username, request)
+    val context = DownloadContext(taskId, username, clientAddress, request)
 
     logDownloadStarted(context)
     tasks[taskId] = DownloadTask(status = "processing")
@@ -511,6 +543,7 @@ private fun logDownloadStarted(context: DownloadContext) {
     PersistentLogger.logAction(
         LogLevel.INFO,
         context.username,
+        context.clientAddress,
         "Started ${request.format} download of ${request.url}" +
             " (audio conversion: ${request.audioConversion}, custom name: ${request.customFilename})"
     )
@@ -612,6 +645,7 @@ private fun completeSuccessfulDownload(context: DownloadContext, taskDir: File) 
     PersistentLogger.logAction(
         LogLevel.INFO,
         context.username,
+        context.clientAddress,
         completedDownloadLog(context.request)
     )
 }
@@ -635,6 +669,7 @@ private fun handleMissingDownload(context: DownloadContext, taskDir: File) {
     PersistentLogger.logAction(
         LogLevel.ERROR,
         context.username,
+        context.clientAddress,
         "Downloaded file not found for (${downloadDetails(context.request)})"
     )
 
@@ -655,6 +690,7 @@ private fun failYtDlpDownload(context: DownloadContext, result: TaskDownloadResu
     PersistentLogger.logAction(
         LogLevel.ERROR,
         context.username,
+        context.clientAddress,
         "yt-dlp failed (exit-code: ${result.exitCode}, ${downloadDetails(context.request)})" +
             "\n\n--- YT-DLP OUTPUT ---\n${result.output}---------------------\n"
     )
@@ -691,6 +727,7 @@ private fun handleDownloadException(context: DownloadContext, error: Exception) 
     PersistentLogger.logAction(
         LogLevel.ERROR,
         context.username,
+        context.clientAddress,
         "Exception during download! (msg: ${error.message}, ${downloadDetails(context.request)})"
     )
 
@@ -730,7 +767,7 @@ private suspend fun cancelDownload(call: RoutingCall) {
     }
 
     stopDownloadTask(taskId, task)
-    logDownloadCancelled(taskId, username)
+    logDownloadCancelled(call, taskId, username)
 
     call.respondJson("""{"ok": true, "status": "cancelled"}""")
 }
@@ -753,10 +790,14 @@ private fun stopDownloadTask(taskId: String, task: DownloadTask) {
 /**
  * Records who requested cancellation of a download task.
  */
-private fun logDownloadCancelled(taskId: String, username: String) {
+private fun logDownloadCancelled(
+    call: RoutingCall,
+    taskId: String,
+    username: String
+) {
     Logger.i("Cancel requested for taskId=$taskId by user=$username")
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.INFO,
         username,
         "Cancelled download task $taskId"
@@ -849,7 +890,7 @@ private suspend fun handleMissingServedFile(
         "Failed to serve file for taskId=$taskId: ${file.absolutePath} - File not found!"
     )
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.ERROR,
         username,
         "Failed to serve file! (${file.absolutePath} - File not found)"
@@ -869,7 +910,7 @@ private suspend fun serveDownloadedFile(
 ) {
     Logger.i("Serving file to user for taskId=$taskId: ${file.absolutePath}")
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.INFO,
         username,
         "Serving file: ${file.absolutePath}"
@@ -972,7 +1013,7 @@ private suspend fun handleVideoTitleRequest(call: RoutingCall) {
  * Rejects and records a title request that did not contain a URL.
  */
 private suspend fun rejectBlankTitleRequest(call: RoutingCall, username: String) {
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.WARNING,
         username,
         "Attempted to get video title from blank URL"
@@ -999,13 +1040,13 @@ private suspend fun respondWithVideoTitle(
             HttpStatusCode.InternalServerError
         )
 
-        PersistentLogger.logAction(LogLevel.ERROR, username, "Failed to get title of $url")
+        call.logPersistentAction(LogLevel.ERROR, username, "Failed to get title of $url")
         return
     }
 
     call.respondJson(JSONObject().put("title", title).toString())
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.INFO,
         username,
         "Title of $url determined as \"$title\""
@@ -1036,7 +1077,7 @@ private suspend fun decodeBase64Url(call: RoutingCall) {
  * Rejects and records a decode request that did not contain Base64 text.
  */
 private suspend fun rejectBlankBase64(call: RoutingCall, username: String) {
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.WARNING,
         username,
         "Attempted to decode blank base64 string"
@@ -1061,12 +1102,12 @@ private suspend fun decodeAndRespond(
     try {
         val decodedUrl = String(Base64.getDecoder().decode(encodedUrl), Charsets.UTF_8)
 
-        logDecodedUrl(username, decodedUrl)
+        logDecodedUrl(call, username, decodedUrl)
         call.respondJson(JSONObject().put("url", decodedUrl).toString())
     } catch (e: Exception) {
         Logger.e("Failed to decode base64 string: ${e.message}")
 
-        PersistentLogger.logAction(
+        call.logPersistentAction(
             LogLevel.ERROR,
             username,
             "Failed to decode base64 string: $encodedUrl"
@@ -1082,10 +1123,14 @@ private suspend fun decodeAndRespond(
 /**
  * Records a successfully decoded URL in both application logs.
  */
-private fun logDecodedUrl(username: String, decodedUrl: String) {
+private fun logDecodedUrl(
+    call: RoutingCall,
+    username: String,
+    decodedUrl: String
+) {
     Logger.i("Successfully decoded base64 URL to: $decodedUrl")
 
-    PersistentLogger.logAction(
+    call.logPersistentAction(
         LogLevel.INFO,
         username,
         "Successfully decoded base64 URL to: $decodedUrl"
