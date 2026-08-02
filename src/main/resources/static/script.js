@@ -76,6 +76,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    const updateFormatAppearance = () => {
+        const audioSelected = formatToggle?.checked;
+
+        videoLabel?.classList.toggle('glow-text', !audioSelected);
+        mp3Label?.classList.toggle('glow-text', Boolean(audioSelected));
+        updateAudioOptionsVisibility();
+    };
+
+    const applyDownloadPreferences = () => {
+        const downloadMode = window.appPreferences?.get('downloadMode') || 'video';
+        const audioConversion = window.appPreferences?.get('audioConversion') || 'fastest';
+
+        if (formatToggle) {
+            formatToggle.checked = downloadMode === 'audio';
+        }
+
+        audioConversionInputs.forEach(input => {
+            input.checked = input.value === audioConversion;
+        });
+
+        updateFormatAppearance();
+    };
+
     // Fetch and display app version
     fetch('/api/version')
         .then(res => res.json())
@@ -162,16 +185,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Toggle switch functionality for styling
     formatToggle?.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            videoLabel.classList.remove('glow-text');
-            mp3Label.classList.add('glow-text');
-        } else {
-            videoLabel.classList.add('glow-text');
-            mp3Label.classList.remove('glow-text');
-        }
-        updateAudioOptionsVisibility();
+        const downloadMode = e.target.checked ? 'audio' : 'video';
+
+        window.appPreferences?.set('downloadMode', downloadMode);
+        updateFormatAppearance();
     });
-    updateAudioOptionsVisibility();
+
+    audioConversionInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            if (input.checked) {
+                window.appPreferences?.set('audioConversion', input.value);
+            }
+        });
+    });
+
+    applyDownloadPreferences();
 
     // Reset UI state
     const resetUI = () => {
