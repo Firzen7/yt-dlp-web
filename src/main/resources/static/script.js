@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const formatToggle = document.getElementById('format-toggle');
     const audioOptions = document.getElementById('audio-options');
     const audioConversionInputs = document.querySelectorAll('input[name="audio-conversion"]');
+    const resolutionOptions = document.getElementById('resolution-options');
+    const resolutionChoices = document.getElementById('resolution-options-choices');
+    const resolutionStatus = document.getElementById('resolution-status');
+    const resolutionStatusText = document.getElementById('resolution-status-text');
+    const resolutionLoader = document.getElementById('resolution-loader');
     const videoLabel = document.querySelector('.video-label');
     const mp3Label = document.querySelector('.mp3-label');
     const form = document.getElementById('download-form');
@@ -60,6 +65,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentMaxProgress = 0;
     let currentTaskId = null;
     let currentAudioConversion = 'fastest';
+    let resolutionLoadTimeout = null;
+    let resolutionRequestController = null;
 
     const setAudioOptionsDisabled = (disabled) => {
         audioConversionInputs.forEach(input => {
@@ -68,12 +75,155 @@ document.addEventListener('DOMContentLoaded', async () => {
         audioOptions?.classList.toggle('disabled', disabled);
     };
 
+    const setResolutionOptionsDisabled = (disabled) => {
+        resolutionChoices?.querySelectorAll('input').forEach(input => {
+            input.disabled = disabled;
+        });
+        resolutionOptions?.classList.toggle('disabled', disabled);
+    };
+
     const updateAudioOptionsVisibility = () => {
         if (formatToggle?.checked) {
             audioOptions?.classList.remove('hidden');
+            resolutionOptions?.classList.add('hidden');
         } else {
             audioOptions?.classList.add('hidden');
+            resolutionOptions?.classList.remove('hidden');
         }
+    };
+
+    const setResolutionStatus = (key = null, loading = false, error = false) => {
+        resolutionStatus?.classList.toggle('is-empty', !key);
+        resolutionStatus?.classList.toggle('error', error);
+
+        if (resolutionLoader) resolutionLoader.hidden = !loading;
+
+        if (key) {
+            setText(resolutionStatusText, key);
+        } else if (resolutionStatusText) {
+            delete resolutionStatusText.dataset.i18n;
+            resolutionStatusText.textContent = '';
+        }
+    };
+
+    const clearDynamicResolutionOptions = () => {
+        resolutionChoices
+            ?.querySelectorAll('.resolution-option:not([data-default-resolution])')
+            .forEach(option => option.remove());
+
+        const defaultInput = resolutionChoices?.querySelector('[data-default-resolution] input');
+        if (defaultInput) defaultInput.checked = true;
+    };
+
+    const cancelResolutionLoad = () => {
+        if (resolutionLoadTimeout) clearTimeout(resolutionLoadTimeout);
+        resolutionLoadTimeout = null;
+        resolutionRequestController?.abort();
+        resolutionRequestController = null;
+    };
+
+    const createResolutionOption = (resolution) => {
+        const option = document.createElement('label');
+        const input = document.createElement('input');
+        const label = document.createElement('span');
+
+        option.className = 'resolution-option';
+        input.type = 'radio';
+        input.name = 'video-resolution';
+        input.value = `${resolution.width}x${resolution.height}`;
+        label.textContent = `${resolution.width} × ${resolution.height}`;
+
+        option.append(input, label);
+        return option;
+    };
+
+    const renderResolutionOptions = (resolutions) => {
+        clearDynamicResolutionOptions();
+
+        resolutions.forEach(resolution => {
+            resolutionChoices?.appendChild(createResolutionOption(resolution));
+        });
+
+        const preferred = window.appPreferences?.get('videoResolution') || 'best';
+        const inputs = Array.from(resolutionChoices?.querySelectorAll('input') || []);
+        const selected = inputs.find(input => input.value === preferred) || inputs[0];
+        if (selected) selected.checked = true;
+
+        const statusKey = resolutions.length ? null : 'download.video.noResolutions';
+        setResolutionStatus(statusKey, false, !resolutions.length);
+    };
+
+    const validResolutions = (values) => {
+        const unique = new Map();
+
+        values.forEach(value => {
+            if (!Number.isInteger(value?.width) || !Number.isInteger(value?.height)) return;
+            if (value.width <= 0 || value.height <= 0) return;
+
+            unique.set(`${value.width}x${value.height}`, value);
+        });
+
+        return Array.from(unique.values());
+    };
+
+    const loadAvailableResolutions = async (url) => {
+        const controller = new AbortController();
+        resolutionRequestController = controller;
+
+        try {
+            const response = await fetch('/api/resolutions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url }),
+                signal: controller.signal
+            });
+
+            if (response.status === 401) {
+                window.location.href = '/login.html';
+                return;
+            }
+            if (!response.ok) throw new Error('Could not retrieve resolutions');
+
+            const data = await response.json();
+            if (url !== urlInput.value.trim() || formatToggle?.checked) return;
+
+            renderResolutionOptions(validResolutions(data.resolutions || []));
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+
+            console.error('Failed to get resolutions:', error);
+            clearDynamicResolutionOptions();
+            setResolutionStatus('download.video.resolutionLoadFailed', false, true);
+        } finally {
+            if (resolutionRequestController === controller) {
+                resolutionRequestController = null;
+            }
+        }
+    };
+
+    const scheduleResolutionLoad = () => {
+        cancelResolutionLoad();
+        clearDynamicResolutionOptions();
+
+        const url = urlInput?.value.trim() || '';
+        if (formatToggle?.checked || !url || !urlInput.checkValidity()) {
+            setResolutionStatus();
+            return;
+        }
+
+        setResolutionStatus('download.video.loadingResolutions', true);
+        resolutionLoadTimeout = setTimeout(() => {
+            resolutionLoadTimeout = null;
+            loadAvailableResolutions(url);
+        }, 650);
+    };
+
+    const selectedVideoResolution = () => {
+        const value = resolutionChoices?.querySelector('input:checked')?.value;
+        if (!value || value === 'best') return null;
+
+        const [width, height] = value.split('x').map(Number);
+        return Number.isInteger(width) && Number.isInteger(height) ? { width, height } : null;
     };
 
     const updateFormatAppearance = () => {
@@ -189,6 +339,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         window.appPreferences?.set('downloadMode', downloadMode);
         updateFormatAppearance();
+        scheduleResolutionLoad();
     });
 
     audioConversionInputs.forEach(input => {
@@ -199,7 +350,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    resolutionChoices?.addEventListener('change', (event) => {
+        if (event.target.name === 'video-resolution') {
+            window.appPreferences?.set('videoResolution', event.target.value);
+        }
+    });
+
+    urlInput?.addEventListener('input', scheduleResolutionLoad);
+
     applyDownloadPreferences();
+    scheduleResolutionLoad();
 
     // Reset UI state
     const resetUI = () => {
@@ -218,6 +378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const toggleContainer = document.querySelector('.toggle-container');
         if (toggleContainer) toggleContainer.classList.remove('disabled');
         setAudioOptionsDisabled(false);
+        setResolutionOptionsDisabled(false);
 
         filenameGroup?.classList.add('hidden');
         if (customFilenameInput) {
@@ -229,6 +390,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (clearFilenameBtn) clearFilenameBtn.disabled = false;
         if (urlInput) urlInput.disabled = false;
         setChangePasswordDisabled(false);
+
+        if (!urlInput?.value.trim()) {
+            cancelResolutionLoad();
+            clearDynamicResolutionOptions();
+            setResolutionStatus();
+        }
 
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
@@ -248,6 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const url = document.getElementById('video-url').value.trim();
         const format = document.getElementById('format-toggle').checked ? 'mp3' : 'video';
         const audioConversion = document.querySelector('input[name="audio-conversion"]:checked')?.value || 'fastest';
+        const resolution = format === 'video' ? selectedVideoResolution() : null;
 
         let customFilename = null;
         if (!filenameGroup?.classList.contains('hidden') && customFilenameInput) {
@@ -267,6 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentAudioConversion = audioConversion;
 
         // Show loading state
+        cancelResolutionLoad();
         submitBtn.classList.add('hidden');
         statusMessage.classList.remove('hidden');
         errorMessage.classList.add('hidden');
@@ -282,6 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const toggleContainer = document.querySelector('.toggle-container');
         if (toggleContainer) toggleContainer.classList.add('disabled');
         setAudioOptionsDisabled(true);
+        setResolutionOptionsDisabled(true);
 
         if (customFilenameInput) customFilenameInput.disabled = true;
         if (clearFilenameBtn) clearFilenameBtn.disabled = true;
@@ -292,6 +462,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const bodyData = { url, format };
             if (format === 'mp3') {
                 bodyData.audioConversion = audioConversion;
+            }
+            if (resolution) {
+                bodyData.resolution = resolution;
             }
             if (customFilename) {
                 bodyData.filename = customFilename;
@@ -482,6 +655,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .then(data => {
                 if (data.url && urlInput) {
                     urlInput.value = data.url;
+                    scheduleResolutionLoad();
                     // Automatically fetch title and open filename settings
                     editFilenameBtn?.click();
                 }

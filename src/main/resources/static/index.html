@@ -81,6 +81,21 @@
                     <span class="toggle-label mp3-label" data-i18n="download.format.audio"></span>
                 </div>
 
+                <div class="resolution-options" id="resolution-options">
+                    <div class="resolution-options-label"
+                        data-i18n="download.video.resolutionPrompt"></div>
+                    <div class="resolution-status is-empty" id="resolution-status" aria-live="polite">
+                        <i class="fa-solid fa-circle-notch fa-spin" id="resolution-loader" hidden></i>
+                        <span id="resolution-status-text"></span>
+                    </div>
+                    <div class="resolution-options-choices" id="resolution-options-choices">
+                        <label class="resolution-option" data-default-resolution>
+                            <input type="radio" name="video-resolution" value="best" checked>
+                            <span data-i18n="download.video.bestResolution"></span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="audio-options hidden" id="audio-options">
                     <div class="audio-options-label" data-i18n="download.audio.conversionPrompt"></div>
                     <div class="audio-options-choices">
