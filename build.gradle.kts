@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "3.0"
+version = "3.1"
 
 repositories {
     mavenCentral()
@@ -57,6 +57,7 @@ dependencies {
     // Ktor microservices framework, Apache 2.0 license
     val ktor_version = "3.4.1"
     implementation("io.ktor:ktor-server-netty:$ktor_version")
+    implementation("io.ktor:ktor-server-forwarded-header:$ktor_version")
     implementation("io.ktor:ktor-server-status-pages:$ktor_version")
     implementation("io.ktor:ktor-server-sessions:$ktor_version")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
