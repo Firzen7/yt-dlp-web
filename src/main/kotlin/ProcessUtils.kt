@@ -5,6 +5,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import net.firzen.web.logging.LogLevel
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -24,8 +25,8 @@ suspend fun runProcess(
         .start()
     processCallback(process)
 
-    val outJob = process.inputStream.bufferedReader().consumeLines(OUT_TAG, fullLog, progressCallback)
-    val errJob = process.errorStream.bufferedReader().consumeLines(ERROR_TAG, fullLog, progressCallback)
+    val outJob = process.inputStream.bufferedReader().consumeLines(LogLevel.INFO.toString(), fullLog, progressCallback)
+    val errJob = process.errorStream.bufferedReader().consumeLines(LogLevel.ERROR.toString(), fullLog, progressCallback)
 
     try {
         return withTimeout(PROCESS_TIMEOUT * 1000) {

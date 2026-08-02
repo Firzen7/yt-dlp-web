@@ -6,6 +6,7 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
@@ -86,7 +87,7 @@ fun BufferedReader.consumeLines(
                 .find(line)
                 ?.value?.filter { it.isDigit() || it == '.' }?.toDouble()
 
-            if (tag == OUT_TAG && percent != null) {
+            if (tag == LogLevel.INFO.toString() && percent != null) {
                 progressCallback(percent)
             }
         }

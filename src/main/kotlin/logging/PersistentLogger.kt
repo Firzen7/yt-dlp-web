@@ -11,9 +11,14 @@ import java.io.File
  */
 object PersistentLogger {
     /**
-     * Records an action at the requested severity under the resolved username.
+     * Records an action, its user, and its client's IP address at the requested severity.
      */
-    fun logAction(logLevel: LogLevel, rawUser: String?, action: String) {
+    fun logAction(
+        logLevel: LogLevel,
+        rawUser: String?,
+        clientAddress: String,
+        action: String
+    ) {
         val currentTime = DateTime().dateTimeString()
         val user = rawUser ?: UNKNOWN_USER
         val logPath = "${LOG_DIRECTORY}/$user.log"
@@ -26,7 +31,9 @@ object PersistentLogger {
             }
 
             if (logfile.canWrite()) {
-                logfile.appendText("$logLevel $currentTime: $action\n")
+                logfile.appendText(
+                    "$logLevel $currentTime [$clientAddress]: $action\n"
+                )
             } else {
                 Logger.e("Could not write into logfile! Path: $logPath")
             }
