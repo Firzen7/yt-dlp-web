@@ -24,6 +24,7 @@ import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
 import okhttp3.OkHttpClient
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.URLEncoder
@@ -58,12 +59,13 @@ private data class PasswordChangeRequest(
 )
 
 /**
- * Holds a normalized download request and exposes its derived audio settings.
+ * Holds a normalized download request and exposes its derived media settings.
  */
 private data class DownloadRequest(
     val url: String,
     val format: String,
     val audioConversion: String,
+    val resolution: Resolution?,
     val customFilename: String
 ) {
     val audioOnly: Boolean get() = format == "mp3"
@@ -96,6 +98,7 @@ private data class MediaDownloadOptions(
     val outputDir: File,
     val audioOnly: Boolean,
     val forceMp3Conversion: Boolean,
+    val resolution: Resolution?,
     val customFilename: String?,
     val progressCallback: (Double?) -> Unit,
     val processCallback: (Process?) -> Unit
@@ -217,6 +220,7 @@ private fun Application.configureRoutes(userManager: UserManager) {
         get("/index.html") { provideProtectedIndex(call) }
         get("/login.html") { provideProtectedLogin(call) }
         post("/api/title") { handleVideoTitleRequest(call) }
+        post("/api/resolutions") { handleResolutionRequest(call) }
         post("/api/decode") { decodeBase64Url(call) }
         post("/api/change-password") { handleChangePassword(userManager, call) }
         post("/api/password-entropy") { handlePasswordEntropy(userManager, call) }
@@ -493,16 +497,30 @@ private suspend fun requireDownloadUser(call: RoutingCall): String? {
  */
 private suspend fun readDownloadRequest(call: RoutingCall): DownloadRequest {
     val body = JSONObject(call.receiveText())
+    val format = body.optString("format", "video")
+        .takeIf { it == "video" || it == "mp3" } ?: "video"
     val audioConversion = body.optString("audioConversion", "fastest")
         .lowercase()
         .takeIf { it == "fastest" || it == "mp3" } ?: "fastest"
 
     return DownloadRequest(
         body.optString("url", "").sanitizeVideoUrl(),
-        body.optString("format", "video"),
+        format,
         audioConversion,
+        readSelectedResolution(body).takeIf { format == "video" },
         sanitizeFilename(body.optString("filename", ""))
     )
+}
+
+/**
+ * Reads a positive width and height from an optional resolution request object.
+ */
+private fun readSelectedResolution(body: JSONObject): Resolution? {
+    val resolution = body.optJSONObject("resolution") ?: return null
+    val width = resolution.optInt("width").takeIf { it > 0 } ?: return null
+    val height = resolution.optInt("height").takeIf { it > 0 } ?: return null
+
+    return Resolution(width, height)
 }
 
 /**
@@ -541,7 +559,8 @@ private fun logDownloadStarted(context: DownloadContext) {
 
     Logger.i(
         "Received download request. Task ID: ${context.taskId}, URL: ${request.url}, " +
-            "Format: ${request.format}, Audio conversion: ${request.audioConversion}"
+            "Format: ${request.format}, Resolution: ${request.resolution ?: "best"}, " +
+            "Audio conversion: ${request.audioConversion}"
     )
 
     PersistentLogger.logAction(
@@ -549,7 +568,7 @@ private fun logDownloadStarted(context: DownloadContext) {
         context.username,
         context.clientAddress,
         "Started ${request.format} download of ${request.url}" +
-            " (audio conversion: ${request.audioConversion}, custom name: ${request.customFilename})"
+            " (${downloadDetails(request)})"
     )
 }
 
@@ -583,13 +602,14 @@ private fun runTaskDownload(context: DownloadContext): TaskDownloadResult {
     if (!taskDir.exists()) taskDir.mkdirs()
 
     val result = downloadMedia(
-        request.url,
-        taskDir.absolutePath,
-        request.audioOnly,
-        request.forceMp3Conversion,
-        request.customFilename.takeIf { it.isNotBlank() },
-        { updateTaskProgress(context.taskId, it) },
-        { trackTaskProcess(context.taskId, it) }
+        rawUrl = request.url,
+        outputDir = taskDir.absolutePath,
+        audioOnly = request.audioOnly,
+        forceMp3Conversion = request.forceMp3Conversion,
+        resolution = request.resolution,
+        customFilename = request.customFilename.takeIf { it.isNotBlank() },
+        progressCallback = { updateTaskProgress(context.taskId, it) },
+        processCallback = { trackTaskProcess(context.taskId, it) }
     )
 
     return TaskDownloadResult(result.first, result.second, taskDir)
@@ -659,7 +679,7 @@ private fun completeSuccessfulDownload(context: DownloadContext, taskDir: File) 
  */
 private fun completedDownloadLog(request: DownloadRequest): String {
     return "Completed ${request.format} download of ${request.url}" +
-        " (audio conversion: ${request.audioConversion}, custom name: ${request.customFilename})"
+        " (${downloadDetails(request)})"
 }
 
 /**
@@ -746,7 +766,8 @@ private fun handleDownloadException(context: DownloadContext, error: Exception) 
  */
 private fun downloadDetails(request: DownloadRequest): String {
     return "format: ${request.format}, audio conversion: ${request.audioConversion}, " +
-        "url: ${request.url}, custom name: ${request.customFilename}"
+        "resolution: ${request.resolution ?: "best"}, url: ${request.url}, " +
+        "custom name: ${request.customFilename}"
 }
 
 /**
@@ -990,6 +1011,81 @@ private suspend fun respondStaticHtml(call: RoutingCall, resourcePath: String) {
     } else {
         call.respondText(text, ContentType.Text.Html)
     }
+}
+
+/**
+ * Authorizes a request and returns the video resolutions reported by yt-dlp.
+ */
+private suspend fun handleResolutionRequest(call: RoutingCall) {
+    val username = call.sessions.get<UserSession>()?.username
+        ?: return call.respondJson(
+            """{"error": "Unauthorized"}""",
+            HttpStatusCode.Unauthorized
+        )
+    val url = JSONObject(call.receiveText())
+        .optString("url", "")
+        .sanitizeVideoUrl()
+
+    if (url.isBlank()) {
+        return call.respondJson(
+            """{"error": "URL is required"}""",
+            HttpStatusCode.BadRequest
+        )
+    }
+
+    try {
+        call.respondJson(resolutionsJson(getAvailableVideoResolutions(url)))
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        respondWithResolutionError(call, username, url, error)
+    }
+}
+
+/**
+ * Serializes available resolutions from largest to smallest for the Web UI.
+ */
+private fun resolutionsJson(resolutions: Set<Resolution>): String {
+    val values = JSONArray()
+    val sorted = resolutions.sortedWith(
+        compareByDescending<Resolution> { it.height }
+            .thenByDescending { it.width }
+    )
+
+    sorted.forEach { resolution ->
+        values.put(
+            JSONObject()
+                .put("width", resolution.width)
+                .put("height", resolution.height)
+        )
+    }
+
+    return JSONObject().put("resolutions", values).toString()
+}
+
+/**
+ * Reports a failed yt-dlp resolution query without exposing process output to the client.
+ */
+private suspend fun respondWithResolutionError(
+    call: RoutingCall,
+    username: String,
+    url: String,
+    error: Exception
+) {
+    Logger.e("Failed to get resolutions for $url: ${error.message}", error)
+    call.logPersistentAction(
+        LogLevel.WARNING,
+        username,
+        "Failed to get video resolutions for $url: ${error.message}"
+    )
+
+    val status = if (error is IllegalArgumentException) {
+        HttpStatusCode.BadRequest
+    } else {
+        HttpStatusCode.BadGateway
+    }
+
+    call.respondJson("""{"error": "Could not load resolutions"}""", status)
 }
 
 /**
@@ -1286,6 +1382,7 @@ private fun downloadMedia(
     outputDir: String,
     audioOnly: Boolean = false,
     forceMp3Conversion: Boolean = false,
+    resolution: Resolution? = null,
     customFilename: String? = null,
     progressCallback: (Double?) -> Unit = {},
     processCallback: (Process?) -> Unit = {}
@@ -1301,8 +1398,13 @@ private fun downloadMedia(
     }
 
     val options = MediaDownloadOptions(
-        directory, audioOnly, forceMp3Conversion, customFilename,
-        progressCallback, processCallback
+        outputDir = directory,
+        audioOnly = audioOnly,
+        forceMp3Conversion = forceMp3Conversion,
+        resolution = resolution,
+        customFilename = customFilename,
+        progressCallback = progressCallback,
+        processCallback = processCallback
     )
 
     return downloadMedia(Url(rawUrl), options)
@@ -1391,6 +1493,7 @@ private fun buildYtDlpCommand(
     val command = baseYtDlpCommand(options.outputDir)
 
     addCustomFilename(command, options.customFilename)
+    addVideoArguments(command, options)
     addAudioArguments(command, options, slowAudioConversion)
     command.add(url.toString())
 
@@ -1419,6 +1522,29 @@ private fun addCustomFilename(command: MutableList<String>, customFilename: Stri
         command.add("-o")
         command.add("$customFilename.%(ext)s")
     }
+}
+
+/**
+ * Restricts video downloads to the dimensions selected by the user.
+ */
+private fun addVideoArguments(
+    command: MutableList<String>,
+    options: MediaDownloadOptions
+) {
+    val resolution = options.resolution ?: return
+
+    if (!options.audioOnly) {
+        command.addAll(listOf("-f", videoFormatSelector(resolution)))
+    }
+}
+
+/**
+ * Builds an exact-resolution selector with separate and combined stream fallbacks.
+ */
+internal fun videoFormatSelector(resolution: Resolution): String {
+    val dimensions = "[width=${resolution.width}][height=${resolution.height}]"
+
+    return "bestvideo$dimensions+bestaudio/best$dimensions/bestvideo$dimensions"
 }
 
 /**

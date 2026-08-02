@@ -39,6 +39,21 @@ class MediaFormatTest {
     }
 
     /**
+     * Verifies that selected dimensions constrain both video selection fallbacks.
+     */
+    @Test
+    fun `video selector requires the selected resolution`() {
+        val selector = videoFormatSelector(Resolution(1280, 720))
+
+        assertEquals(
+            "bestvideo[width=1280][height=720]+bestaudio/" +
+                "best[width=1280][height=720]/" +
+                "bestvideo[width=1280][height=720]",
+            selector
+        )
+    }
+
+    /**
      * Supplies representative yt-dlp JSON shared by the decoding tests.
      */
     private companion object {

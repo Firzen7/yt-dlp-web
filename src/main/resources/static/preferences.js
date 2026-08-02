@@ -1,21 +1,23 @@
 (() => {
     const storageKey = 'yt-dlp-web.preferences';
     const legacyLocaleKey = 'yt-dlp-web.locale';
-    const schemaVersion = 1;
+    const schemaVersion = 2;
     const defaults = Object.freeze({
         locale: null,
         downloadMode: 'video',
-        audioConversion: 'fastest'
+        audioConversion: 'fastest',
+        videoResolution: 'best'
     });
 
-    const allowedValues = {
-        locale: [null, 'cs', 'en'],
-        downloadMode: ['video', 'audio'],
-        audioConversion: ['fastest', 'mp3']
+    const validators = {
+        locale: value => [null, 'cs', 'en'].includes(value),
+        downloadMode: value => ['video', 'audio'].includes(value),
+        audioConversion: value => ['fastest', 'mp3'].includes(value),
+        videoResolution: value => value === 'best' || /^[1-9]\d{0,4}x[1-9]\d{0,4}$/.test(value)
     };
 
     const normalizeValue = (key, value) => {
-        return allowedValues[key]?.includes(value) ? value : defaults[key];
+        return validators[key]?.(value) ? value : defaults[key];
     };
 
     const normalizedPreferences = (stored = {}) => {
