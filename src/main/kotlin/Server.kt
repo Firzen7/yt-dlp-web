@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
@@ -103,6 +104,9 @@ private data class MediaDownloadOptions(
 private val tasks = ConcurrentHashMap<String, DownloadTask>()
 private val taskJobs = ConcurrentHashMap<String, Job>()
 private val taskProcesses = ConcurrentHashMap<String, Process>()
+
+private const val MEDIA_FORMAT_TEMPLATE =
+    "%(formats.:.{format_id,width,height,fps,ext,vcodec,acodec})#j"
 
 /**
  * Returns the application version generated from the Gradle project version.
@@ -1187,6 +1191,91 @@ private suspend fun fetchGenericTitle(url: String): String = coroutineScope {
     process.await(PROCESS_TIMEOUT * 1000)
 
     outputJob.await()
+}
+
+/**
+ * Queries yt-dlp and returns the distinct video resolutions available for a URL.
+ */
+suspend fun getAvailableVideoResolutions(videoUrl: String): Set<Resolution> {
+    val validationError = mediaUrlError(videoUrl)
+
+    require(validationError == null) {
+        validationError ?: "Invalid media URL"
+    }
+
+    val command = buildMediaFormatCommand(videoUrl)
+    val output = runMediaFormatCommand(command)
+
+    return parseVideoResolutions(output)
+}
+
+/**
+ * Builds the metadata-only yt-dlp command used to inspect available streams.
+ */
+private fun buildMediaFormatCommand(videoUrl: String): List<String> {
+    return listOf(
+        "yt-dlp",
+        "--ignore-config",
+        "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH",
+        "--no-cache-dir",
+        "--no-playlist",
+        "--print", MEDIA_FORMAT_TEMPLATE,
+        videoUrl
+    )
+}
+
+/**
+ * Executes a format query while collecting its standard and error output safely.
+ */
+private suspend fun runMediaFormatCommand(command: List<String>): String = coroutineScope {
+    Logger.i("Executing yt-dlp format query for ${command.last()}")
+
+    val process = ProcessBuilder(command).start()
+    val output = async(Dispatchers.IO) {
+        process.inputStream.bufferedReader().readText()
+    }
+    val errors = async(Dispatchers.IO) {
+        process.errorStream.bufferedReader().readText()
+    }
+    val exitCode = process.await(PROCESS_TIMEOUT * 1000)
+    val standardOutput = output.await()
+    val errorOutput = errors.await().trim()
+
+    check(exitCode == 0) {
+        "yt-dlp format query failed with exit code $exitCode: $errorOutput"
+    }
+
+    standardOutput
+}
+
+/**
+ * Parses yt-dlp format JSON and keeps unique dimensions from video streams.
+ */
+internal fun parseVideoResolutions(output: String): Set<Resolution> {
+    val formats = Json.decodeFromString<List<MediaFormat>>(output)
+
+    return formats.asSequence()
+        .filter(::isVideoFormat)
+        .mapNotNull(::mediaFormatResolution)
+        .toSet()
+}
+
+/**
+ * Reports whether a media format contains a real video stream.
+ */
+private fun isVideoFormat(format: MediaFormat): Boolean {
+    return !format.vcodec.isNullOrBlank() &&
+        !format.vcodec.equals("none", ignoreCase = true)
+}
+
+/**
+ * Converts valid positive stream dimensions into a resolution.
+ */
+private fun mediaFormatResolution(format: MediaFormat): Resolution? {
+    val width = format.width?.takeIf { it > 0 } ?: return null
+    val height = format.height?.takeIf { it > 0 } ?: return null
+
+    return Resolution(width, height)
 }
 
 /**
