@@ -1,7 +1,6 @@
 (() => {
     const supportedLocales = ['cs', 'en'];
     const defaultLocale = 'cs';
-    const storageKey = 'yt-dlp-web.locale';
 
     let locale = defaultLocale;
     let messages = {};
@@ -14,11 +13,7 @@
     };
 
     const storedLocale = () => {
-        try {
-            return normalizeLocale(localStorage.getItem(storageKey));
-        } catch (_) {
-            return null;
-        }
+        return normalizeLocale(window.appPreferences?.get('locale'));
     };
 
     const browserLocale = () => {
@@ -89,14 +84,6 @@
         });
     };
 
-    const persistLocale = (language) => {
-        try {
-            localStorage.setItem(storageKey, language);
-        } catch (_) {
-            // Local storage may be unavailable in privacy-restricted browsers.
-        }
-    };
-
     const setLocale = async (requestedLocale, persist = true) => {
         const nextLocale = normalizeLocale(requestedLocale) || defaultLocale;
         locale = nextLocale;
@@ -112,7 +99,7 @@
             messages = defaultMessages;
         }
 
-        if (persist) persistLocale(locale);
+        if (persist) window.appPreferences?.set('locale', locale);
         translateDocument();
         window.dispatchEvent(new CustomEvent('i18n:locale-changed', { detail: { locale } }));
     };
