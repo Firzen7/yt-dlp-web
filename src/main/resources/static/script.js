@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await window.i18n.init();
+
+    const { setText, t } = window.i18n;
     const urlInput = document.getElementById('video-url');
     const editFilenameBtn = document.getElementById('edit-filename-btn');
     const filenameGroup = document.getElementById('filename-group');
@@ -37,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Prevent restricted characters in filename
     customFilenameInput?.addEventListener('input', (e) => {
+        delete e.target.dataset.i18nValue;
         e.target.value = e.target.value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
         toggleClearBtn();
     });
@@ -46,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clearFilenameBtn.disabled) return;
 
         if (customFilenameInput) {
+            delete customFilenameInput.dataset.i18nValue;
             customFilenameInput.value = '';
             toggleClearBtn();
             customFilenameInput.focus();
@@ -88,9 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('Not logged in');
         })
         .then(data => {
-            const userEl = document.getElementById('logged-in-user');
-            if (userEl && data.username) {
-                userEl.innerHTML = `Přihlášen(a) jako: <strong style="color: var(--text-main);">${data.username}</strong>`;
+            const usernameEl = document.getElementById('logged-in-username');
+            if (usernameEl && data.username) {
+                usernameEl.textContent = data.username;
             }
         }).catch(err => console.error('Failed to fetch user', err));
 
@@ -110,13 +115,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const url = urlInput.value.trim();
         if (!url) {
-            alert('Nejprve zadejte odkaz na video.');
+            alert(t('download.errors.urlRequiredBeforeFilename'));
             return;
         }
 
         filenameGroup.classList.toggle('hidden');
         if (!filenameGroup.classList.contains('hidden')) {
             filenameLoader.classList.remove('hidden');
+            delete customFilenameInput.dataset.i18nValue;
             customFilenameInput.value = '';
             toggleClearBtn();
             try {
@@ -135,17 +141,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await response.json();
                 if (data.title) {
+                    delete customFilenameInput.dataset.i18nValue;
                     customFilenameInput.value = data.title.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
                     toggleClearBtn();
                 }
             } catch (err) {
                 console.error('Failed to get title:', err);
-                customFilenameInput.value = 'Nepodařilo se načíst název';
+                customFilenameInput.dataset.i18nValue = 'download.filenameLoadFailed';
+                customFilenameInput.value = t('download.filenameLoadFailed');
                 toggleClearBtn();
             } finally {
                 filenameLoader.classList.add('hidden');
             }
         } else {
+            delete customFilenameInput.dataset.i18nValue;
             customFilenameInput.value = '';
             toggleClearBtn();
         }
@@ -184,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filenameGroup?.classList.add('hidden');
         if (customFilenameInput) {
+            delete customFilenameInput.dataset.i18nValue;
             customFilenameInput.value = '';
             toggleClearBtn();
             customFilenameInput.disabled = false;
@@ -196,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const progressBarBg = document.getElementById('progress-bar-bg');
         if (progressBarBg) progressBarBg.style.width = '0%';
         const statusText = document.getElementById('status-text');
-        if (statusText) statusText.textContent = 'Zpracovávám...';
+        setText(statusText, 'download.status.processing');
         currentMaxProgress = 0; // Reset max progress on UI reset
         currentTaskId = null;
     };
@@ -217,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!url) {
-            errorMessage.textContent = 'Prosím, vložte URL adresu videa.';
+            setText(errorMessage, 'download.errors.urlRequired');
             errorMessage.classList.remove('hidden');
             submitBtn.classList.remove('hidden');
             statusMessage.classList.add('hidden');
@@ -284,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error starting download:', error);
-            showError();
+            showError('download.errors.generic');
         }
     });
 
@@ -306,11 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showDownload(data.download_url);
             } else if (data.status === 'error') {
                 console.error("Backend error: ", data.error);
-                if (data.error) {
-                    errorMessage.textContent = data.error;
-                } else {
-                    errorMessage.textContent = 'Při stahování došlo k chybě.';
-                }
+                setText(errorMessage, 'download.errors.failed');
                 showError();
             } else if (data.status === 'cancelled') {
                 showCancelled();
@@ -326,9 +332,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (statusText) {
                         if (currentMaxProgress >= 100) {
                             const isMp3 = document.getElementById('format-toggle').checked;
-                            statusText.textContent = isMp3 && currentAudioConversion === 'mp3' ? 'Konvertuji na zvuk ...' : 'Dokončuji ...';
+                            const statusKey = isMp3 && currentAudioConversion === 'mp3'
+                                ? 'download.status.converting'
+                                : 'download.status.finishing';
+                            setText(statusText, statusKey);
                         } else {
-                            statusText.textContent = `Stahuji... ${currentMaxProgress}%`;
+                            setText(statusText, 'download.status.downloading', {
+                                progress: currentMaxProgress
+                            });
                         }
                     }
                     if (progressBarBg) progressBarBg.style.width = `${currentMaxProgress}%`;
@@ -340,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error polling status:', error);
-            showError();
+            showError('download.errors.generic');
         }
     };
 
@@ -349,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusText = document.getElementById('status-text');
         const progressBarBg = document.getElementById('progress-bar-bg');
 
-        if (statusText) statusText.textContent = 'Hotovo! Ukládám...';
+        setText(statusText, 'download.status.completed');
         if (progressBarBg) progressBarBg.style.width = '100%';
         cancelDownloadBtn?.classList.add('hidden');
 
@@ -373,14 +384,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusText = document.getElementById('status-text');
         const progressBarBg = document.getElementById('progress-bar-bg');
 
-        if (statusText) statusText.textContent = 'Stahování zrušeno';
+        setText(statusText, 'download.status.cancelled');
         if (progressBarBg) progressBarBg.style.width = '0%';
         cancelDownloadBtn?.classList.add('hidden');
 
         setTimeout(resetUI, 1000);
     };
 
-    const showError = () => {
+    const showError = (errorKey = null) => {
+        if (errorKey) setText(errorMessage, errorKey);
+
         statusMessage.classList.add('hidden');
         errorMessage.classList.remove('hidden');
         cancelDownloadBtn?.classList.add('hidden');
@@ -389,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const progressBarBg = document.getElementById('progress-bar-bg');
         if (progressBarBg) progressBarBg.style.width = '0%';
         const statusText = document.getElementById('status-text');
-        if (statusText) statusText.textContent = 'Zpracovávám...';
+        setText(statusText, 'download.status.processing');
 
         setTimeout(() => {
             resetUI();
@@ -401,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cancelDownloadBtn.disabled = true;
         const statusText = document.getElementById('status-text');
-        if (statusText) statusText.textContent = 'Ruším stahování...';
+        setText(statusText, 'download.status.cancelling');
 
         try {
             const response = await fetch(`/api/cancel/${currentTaskId}`, { method: 'POST' });
@@ -416,8 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showCancelled();
         } catch (error) {
             console.error('Error cancelling download:', error);
-            errorMessage.textContent = 'Stahování se nepodařilo zrušit.';
-            showError();
+            showError('download.errors.cancelFailed');
         }
     });
 
@@ -538,15 +550,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (strengthLabel) {
-            let labelText = 'Příliš slabé';
+            let strengthKey = 'password.strength.tooWeak';
             if (entropy >= 65) {
-                labelText = 'Velmi silné';
+                strengthKey = 'password.strength.veryStrong';
             } else if (entropy >= minimumPasswordEntropy) {
-                labelText = 'Silné';
+                strengthKey = 'password.strength.strong';
             } else if (entropy >= 25) {
-                labelText = 'Slabé';
+                strengthKey = 'password.strength.weak';
             }
-            strengthLabel.textContent = `Síla: ${labelText}`;
+            setText(strengthLabel, strengthKey);
         }
     };
 
@@ -559,9 +571,9 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmNewPasswordInput.removeAttribute('aria-invalid');
     };
 
-    const showPasswordError = (message, input = null) => {
+    const showPasswordError = (errorKey, input = null) => {
         passwordSuccessEl.classList.add('hidden');
-        passwordErrorEl.textContent = message;
+        setText(passwordErrorEl, errorKey);
         passwordErrorEl.classList.remove('hidden');
 
         if (input) {
@@ -572,19 +584,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const validatePasswordFields = (currentPassword, newPassword, confirmation) => {
         if (!currentPassword) {
-            return { message: 'Zadejte aktuální heslo.', input: currentPasswordInput };
+            return { key: 'password.errors.currentRequired', input: currentPasswordInput };
         }
 
         if (!newPassword) {
-            return { message: 'Zadejte nové heslo.', input: newPasswordInput };
+            return { key: 'password.errors.newRequired', input: newPasswordInput };
         }
 
         if (!confirmation) {
-            return { message: 'Potvrďte nové heslo.', input: confirmNewPasswordInput };
+            return { key: 'password.errors.confirmRequired', input: confirmNewPasswordInput };
         }
 
         if (newPassword !== confirmation) {
-            return { message: 'Nová hesla se neshodují.', input: confirmNewPasswordInput };
+            return { key: 'password.errors.mismatch', input: confirmNewPasswordInput };
         }
 
         return null;
@@ -680,17 +692,17 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         if (validationError) {
-            showPasswordError(validationError.message, validationError.input);
+            showPasswordError(validationError.key, validationError.input);
             return;
         }
 
         if (!await ensureCurrentEntropy(newPassword)) {
-            showPasswordError('Sílu nového hesla se nepodařilo ověřit. Zkuste to znovu.');
+            showPasswordError('password.errors.strengthUnavailable');
             return;
         }
 
         if (currentEntropy < minimumPasswordEntropy) {
-            showPasswordError('Nové heslo není dostatečně silné.', newPasswordInput);
+            showPasswordError('password.errors.tooWeak', newPasswordInput);
             return;
         }
 
@@ -703,15 +715,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
             });
 
-            const data = await response.json().catch(() => ({}));
-
             if (response.status === 401) {
                 window.location.href = '/login.html';
                 return;
             }
 
             if (response.ok) {
-                passwordSuccessEl.textContent = 'Heslo bylo úspěšně změněno. Odhlašuji...';
+                setText(passwordSuccessEl, 'password.success');
                 passwordSuccessEl.classList.remove('hidden');
                 
                 // Disable inputs and buttons
@@ -726,17 +736,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = '/login.html';
                 }, 2000);
             } else {
-                const message = data.error || 'Nepodařilo se změnit heslo.';
-                const input = message === 'Nesprávné aktuální heslo.'
+                const errorKey = response.status === 400
+                    ? 'password.errors.currentInvalid'
+                    : 'password.errors.changeFailed';
+                const input = response.status === 400
                     ? currentPasswordInput
                     : null;
 
-                showPasswordError(message, input);
+                showPasswordError(errorKey, input);
                 savePasswordBtn.disabled = false;
             }
         } catch (err) {
             console.error('Failed to change password:', err);
-            showPasswordError('Síťová chyba. Zkuste to prosím znovu.');
+            showPasswordError('password.errors.network');
             savePasswordBtn.disabled = false;
         }
     });
