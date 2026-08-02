@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="cs" class="i18n-loading">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Přihlášení | Stahovač Videa</title>
+    <title data-i18n="login.pageTitle"></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -76,57 +76,38 @@
 
     <header class="navbar">
         <div class="logo">
+            <label class="language-picker" data-i18n-title="language.label">
+                <i class="fa-solid fa-language" aria-hidden="true"></i>
+                <select data-language-selector data-i18n-aria-label="language.label">
+                    <option value="cs" data-i18n="language.cs"></option>
+                    <option value="en" data-i18n="language.en"></option>
+                </select>
+            </label>
         </div>
     </header>
 
     <main class="container">
         <div class="glass-card neon-border" style="max-width: 450px;">
-            <h1 class="title neon-text" style="font-size: 2rem;">Přihlášení</h1>
+            <h1 class="title neon-text" style="font-size: 2rem;" data-i18n="login.title"></h1>
 
             <div id="flash-message" class="flash-message" style="display: none;"></div>
 
             <form id="login-form" style="width: 100%;">
-                <input type="text" name="username" id="username" class="login-input" placeholder="Uživatelské jméno"
-                    required autofocus>
-                <input type="password" name="password" id="password" class="login-input" placeholder="Heslo" required>
+                <input type="text" name="username" id="username" class="login-input"
+                    data-i18n-placeholder="login.usernamePlaceholder" required autofocus>
+                <input type="password" name="password" id="password" class="login-input"
+                    data-i18n-placeholder="login.passwordPlaceholder" required>
 
                 <button type="submit" class="login-btn">
-                    PŘIHLÁSIT SE <i class="fa-solid fa-arrow-right-to-bracket" style="margin-left: 10px;"></i>
+                    <span data-i18n="login.submit"></span>
+                    <i class="fa-solid fa-arrow-right-to-bracket" style="margin-left: 10px;"></i>
                 </button>
             </form>
         </div>
     </main>
 
-    <script>
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const flash = document.getElementById('flash-message');
-            flash.style.display = 'none';
-
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    window.location.href = '/' + window.location.search;
-                } else {
-                    flash.textContent = data.error || 'Nesprávné jméno nebo heslo.';
-                    flash.style.display = 'block';
-                }
-            } catch (err) {
-                flash.textContent = 'Chyba připojení k serveru.';
-                flash.style.display = 'block';
-            }
-        });
-    </script>
+    <script src="/i18n.js"></script>
+    <script src="/login.js"></script>
 </body>
 
 </html>

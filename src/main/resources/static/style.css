@@ -19,6 +19,10 @@
     padding: 0;
 }
 
+html.i18n-loading body {
+    visibility: hidden;
+}
+
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -86,6 +90,30 @@ body {
     color: #b030ff;
 }
 
+.language-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+}
+
+.language-picker select {
+    min-width: 96px;
+    padding: 7px 28px 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background-color: var(--primary-bg);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.language-picker select:focus-visible {
+    outline: 2px solid rgba(0, 195, 255, 0.7);
+    outline-offset: 2px;
+}
+
 nav {
     display: flex;
     gap: 2rem;
@@ -125,6 +153,7 @@ nav a:hover {
     justify-content: center;
     align-items: center;
     padding: 2rem;
+    min-width: 0;
 }
 
 .glass-card {
@@ -140,6 +169,7 @@ nav a:hover {
     flex-direction: column;
     align-items: center;
     position: relative;
+    min-width: 0;
 }
 
 .glass-card::before {
@@ -174,6 +204,7 @@ nav a:hover {
     flex-direction: column;
     align-items: center;
     gap: 2.5rem;
+    min-width: 0;
 }
 
 /* Input Field */
@@ -183,6 +214,7 @@ nav a:hover {
     display: flex;
     align-items: center;
     height: 60px;
+    min-width: 0;
 }
 
 .input-group::before {
@@ -203,6 +235,7 @@ nav a:hover {
 
 #video-url {
     width: 100%;
+    min-width: 0;
     height: 100%;
     background-color: var(--primary-bg);
     border: none;
@@ -767,4 +800,47 @@ input:disabled+.slider {
     justify-content: flex-start;
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .navbar {
+        padding: 1.25rem 1.5rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .user-actions {
+        align-items: flex-start !important;
+    }
+
+    .language-picker select {
+        min-width: 84px;
+    }
+
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .container {
+        padding: 1rem;
+    }
+
+    .glass-card {
+        padding: 2.25rem 1.25rem;
+    }
+
+    .title {
+        font-size: 2rem;
+    }
+
+    .modal-card {
+        padding: 2rem 1.25rem !important;
+    }
 }

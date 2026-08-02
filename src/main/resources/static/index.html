@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="cs" class="i18n-loading">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stahovač Videa</title>
+    <title data-i18n="app.title"></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,82 +19,101 @@
 
     <header class="navbar">
         <div class="logo">
+            <label class="language-picker" data-i18n-title="language.label">
+                <i class="fa-solid fa-language" aria-hidden="true"></i>
+                <select data-language-selector data-i18n-aria-label="language.label">
+                    <option value="cs" data-i18n="language.cs"></option>
+                    <option value="en" data-i18n="language.en"></option>
+                </select>
+            </label>
         </div>
         <div class="user-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-            <div id="logged-in-user" style="color: var(--text-muted); font-size: 0.85rem;"></div>
+            <div id="logged-in-user" style="color: var(--text-muted); font-size: 0.85rem;">
+                <span data-i18n="auth.loggedInAs"></span>
+                <strong id="logged-in-username" style="color: var(--text-main);"></strong>
+            </div>
             <div class="nav-links" style="display: flex; gap: 12px; align-items: center;">
-                <a href="#" id="change-password-btn"><i class="fa-solid fa-key" style="margin-right: 4px;"></i> Změnit heslo</a>
+                <a href="#" id="change-password-btn">
+                    <i class="fa-solid fa-key" style="margin-right: 4px;"></i>
+                    <span data-i18n="auth.changePassword"></span>
+                </a>
                 <span style="color: var(--text-muted); font-size: 0.8rem;">|</span>
-                <a href="#" id="logout-btn">Odhlásit se <i class="fa-solid fa-arrow-right-from-bracket"
-                        style="margin-left: 5px;"></i></a>
+                <a href="#" id="logout-btn">
+                    <span data-i18n="auth.logout"></span>
+                    <i class="fa-solid fa-arrow-right-from-bracket" style="margin-left: 5px;"></i>
+                </a>
             </div>
         </div>
     </header>
 
     <main class="container">
         <div class="glass-card neon-border">
-            <h1 class="title neon-text">Stahovač Videa</h1>
+            <h1 class="title neon-text" data-i18n="app.title"></h1>
 
             <form id="download-form" class="content-wrapper">
                 <div class="input-group">
-                    <input type="url" id="video-url" placeholder="Stiskni CTRL+V pro vložení odkazu videa..."
-                        required />
-                    <button type="button" class="settings-btn" id="edit-filename-btn" title="Upravit název videa">
+                    <input type="url" id="video-url" data-i18n-placeholder="download.urlPlaceholder" required />
+                    <button type="button" class="settings-btn" id="edit-filename-btn"
+                        data-i18n-title="download.editFilename" data-i18n-aria-label="download.editFilename">
                         <i class="fa-solid fa-gear"></i>
                     </button>
                 </div>
 
                 <div class="filename-group hidden" id="filename-group">
-                    <input type="text" id="custom-filename" placeholder="Vlastní název videa..." />
-                    <button type="button" class="clear-filename-btn hidden" id="clear-filename-btn" title="Vymazat název">
+                    <input type="text" id="custom-filename"
+                        data-i18n-placeholder="download.customFilenamePlaceholder" />
+                    <button type="button" class="clear-filename-btn hidden" id="clear-filename-btn"
+                        data-i18n-title="download.clearFilename" data-i18n-aria-label="download.clearFilename">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                     <div class="filename-loader hidden" id="filename-loader">
-                        <i class="fa-solid fa-circle-notch fa-spin"></i> Načítám název...
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                        <span data-i18n="download.loadingTitle"></span>
                     </div>
                 </div>
 
                 <div class="toggle-container">
-                    <span class="toggle-label video-label glow-text">VIDEO</span>
+                    <span class="toggle-label video-label glow-text" data-i18n="download.format.video"></span>
                     <label class="switch">
                         <input type="checkbox" id="format-toggle">
                         <span class="slider round"></span>
                     </label>
-                    <span class="toggle-label mp3-label">AUDIO</span>
+                    <span class="toggle-label mp3-label" data-i18n="download.format.audio"></span>
                 </div>
 
                 <div class="audio-options hidden" id="audio-options">
-                    <div class="audio-options-label">Zvolte způsob konverze</div>
+                    <div class="audio-options-label" data-i18n="download.audio.conversionPrompt"></div>
                     <div class="audio-options-choices">
                         <label class="audio-option">
                             <input type="radio" name="audio-conversion" value="fastest" checked>
-                            <span>Nejrychlejší</span>
+                            <span data-i18n="download.audio.fastest"></span>
                         </label>
                         <label class="audio-option">
                             <input type="radio" name="audio-conversion" value="mp3">
-                            <span>MP3</span>
+                            <span data-i18n="download.audio.mp3"></span>
                         </label>
                     </div>
                 </div>
 
                 <div class="action-container">
                     <button type="submit" id="submit-btn" class="btn-primary">
-                        <span class="btn-text">ZAČÍT STAHOVAT</span> <i class="fa-solid fa-download"></i>
+                        <span class="btn-text" data-i18n="download.start"></span>
+                        <i class="fa-solid fa-download"></i>
                     </button>
                     <div id="status-message" class="status-message hidden">
                         <div class="progress-bar-bg" id="progress-bar-bg"
                             style="position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 195, 255, 0.2); width: 0%; border-radius: 12px; transition: width 0.3s; z-index: 1;">
                         </div>
                         <i class="fa-solid fa-circle-notch fa-spin" style="z-index: 2;"></i> <span id="status-text"
-                            style="z-index: 2;">Zpracovávám...</span>
-                        <button type="button" id="cancel-download-btn" class="cancel-download-btn hidden" title="Zrušit stahování">
+                            style="z-index: 2;" data-i18n="download.status.processing"></span>
+                        <button type="button" id="cancel-download-btn" class="cancel-download-btn hidden"
+                            data-i18n-title="download.cancel" data-i18n-aria-label="download.cancel">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
 
-                    <div id="error-message" class="error-message hidden">
-                        Něco se pokazilo. Zkuste to prosím znovu.
-                    </div>
+                    <div id="error-message" class="error-message hidden"
+                        data-i18n="download.errors.generic"></div>
                 </div>
             </form>
         </div>
@@ -105,18 +124,21 @@
     <!-- Change Password Modal -->
     <div id="change-password-modal" class="modal-overlay hidden">
         <div class="glass-card modal-card neon-border">
-            <button type="button" class="close-modal-btn" id="close-password-btn" title="Zavřít">
+            <button type="button" class="close-modal-btn" id="close-password-btn"
+                data-i18n-title="common.close" data-i18n-aria-label="common.close">
                 <i class="fa-solid fa-xmark"></i>
             </button>
-            <h2 class="modal-title neon-text">Změnit heslo</h2>
+            <h2 class="modal-title neon-text" data-i18n="password.title"></h2>
             
             <form id="change-password-form" class="content-wrapper password-form" novalidate>
                 <div class="input-group">
-                    <input type="password" id="current-password" placeholder="Aktuální heslo..." required />
+                    <input type="password" id="current-password"
+                        data-i18n-placeholder="password.currentPlaceholder" required />
                 </div>
                 
                 <div class="input-group">
-                    <input type="password" id="new-password" placeholder="Nové heslo..." required />
+                    <input type="password" id="new-password"
+                        data-i18n-placeholder="password.newPlaceholder" required />
                 </div>
 
                 <div class="strength-meter-container">
@@ -124,29 +146,31 @@
                         <div id="password-strength-bar" class="strength-bar"></div>
                     </div>
                     <div class="strength-text-row">
-                        <span id="password-strength-label">Síla: Příliš slabé</span>
+                        <span id="password-strength-label" data-i18n="password.strength.tooWeak"></span>
                     </div>
                 </div>
 
                 <div class="input-group">
-                    <input type="password" id="confirm-new-password" placeholder="Potvrdit nové heslo..." required />
+                    <input type="password" id="confirm-new-password"
+                        data-i18n-placeholder="password.confirmPlaceholder" required />
                 </div>
 
                 <div class="password-actions">
-                    <button type="button" id="cancel-password-btn" class="btn-secondary">ZRUŠIT</button>
-                    <button type="submit" id="save-password-btn" class="btn-primary">ULOŽIT</button>
+                    <button type="button" id="cancel-password-btn" class="btn-secondary"
+                        data-i18n="common.cancel"></button>
+                    <button type="submit" id="save-password-btn" class="btn-primary"
+                        data-i18n="common.save"></button>
                 </div>
 
-                <div id="password-error-message" class="error-message password-feedback hidden" role="alert">
-                    Něco se pokazilo.
-                </div>
-                <div id="password-success-message" class="btn-success password-feedback hidden" role="status">
-                    Heslo bylo úspěšně změněno. Odhlašuji...
-                </div>
+                <div id="password-error-message" class="error-message password-feedback hidden" role="alert"
+                    data-i18n="download.errors.generic"></div>
+                <div id="password-success-message" class="btn-success password-feedback hidden" role="status"
+                    data-i18n="password.success"></div>
             </form>
         </div>
     </div>
 
+    <script src="/i18n.js"></script>
     <script src="/script.js"></script>
 </body>
 
