@@ -585,7 +585,7 @@ input:disabled+.slider {
     height: 42px;
     border-radius: 9px;
     color: var(--text-muted);
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
 }
@@ -603,7 +603,7 @@ input:disabled+.slider {
     background: transparent;
     color: var(--text-muted);
     font-family: var(--font-main);
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
