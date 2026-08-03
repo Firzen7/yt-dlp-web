@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resolutionStatusText = document.getElementById('resolution-status-text');
     const resolutionLoader = document.getElementById('resolution-loader');
     const selectResolutionBtn = document.getElementById('select-resolution-btn');
-    const resolutionReloadIcon = document.getElementById('resolution-reload-icon');
     const videoLabel = document.querySelector('.video-label');
     const mp3Label = document.querySelector('.mp3-label');
     const form = document.getElementById('download-form');
@@ -228,6 +227,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (bestInput) bestInput.disabled = resolutionControlsDisabled;
         if (selectResolutionBtn) {
             selectResolutionBtn.disabled = resolutionControlsDisabled || resolutionLoading;
+            const selectedResolution = resolutionOptions?.querySelector('input:checked')?.value;
+            selectResolutionBtn.classList.toggle(
+                'is-selected',
+                Boolean(selectedResolution && selectedResolution !== 'best')
+            );
         }
 
         fetchedOptions.forEach(option => {
@@ -235,7 +239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             option.querySelector('input').disabled = resolutionControlsDisabled || resolutionLoading || stale;
         });
 
-        if (resolutionReloadIcon) resolutionReloadIcon.hidden = !stale;
         updateResolutionSelectTitle(stale);
     }
 
@@ -426,6 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     resolutionOptions?.addEventListener('change', (event) => {
         if (event.target.name === 'video-resolution') {
             window.appPreferences?.set('videoResolution', event.target.value);
+            updateResolutionControlState();
         }
     });
 

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "3.1"
+version = "3.2"
 
 repositories {
     mavenCentral()
