@@ -549,7 +549,6 @@ input:disabled+.slider {
 }
 
 .resolution-status {
-    min-height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -560,7 +559,7 @@ input:disabled+.slider {
 }
 
 .resolution-status.is-empty {
-    visibility: hidden;
+    display: none;
 }
 
 .resolution-status.error {
@@ -580,6 +579,10 @@ input:disabled+.slider {
     scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
+.resolution-results.is-empty {
+    display: none;
+}
+
 .resolution-option {
     position: relative;
     flex: 1 0 112px;
@@ -589,6 +592,47 @@ input:disabled+.slider {
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
+}
+
+.resolution-select-button {
+    flex: 1 0 112px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-main);
+    font-size: 0.88rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.resolution-select-button:hover,
+.resolution-select-button:focus-visible {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.resolution-select-button:focus-visible {
+    outline: 2px solid rgba(0, 195, 255, 0.7);
+    outline-offset: -2px;
+}
+
+.resolution-select-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.resolution-option.is-stale {
+    opacity: 0.42;
+    cursor: default;
 }
 
 .resolution-option input {
