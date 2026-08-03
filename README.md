@@ -124,7 +124,7 @@ The command interactively asks for a username, password, and confirmation. Usern
 ### Change a user's password
 
 ```bash
-java -jar yt-dlp-web.jar passwd \<username\>
+java -jar yt-dlp-web.jar passwd <username>
 ```
 
 The user must already exist. Both user-management commands require a real interactive console; piped input and environments without `System.console()` are not supported.
