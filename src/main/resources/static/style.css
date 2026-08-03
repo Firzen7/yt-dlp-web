@@ -73,7 +73,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 4rem;
+    padding: 1.5rem 4rem 1.5rem 2rem;
     font-size: 0.9rem;
 }
 
@@ -84,10 +84,6 @@ body {
     font-weight: 700;
     font-size: 1.2rem;
     letter-spacing: 1px;
-}
-
-.logo i {
-    color: #b030ff;
 }
 
 .language-picker {
@@ -964,6 +960,10 @@ input:disabled+.slider {
         flex-direction: column;
         align-items: stretch;
         gap: 1rem;
+    }
+
+    .version-info {
+        left: 1.5rem;
     }
 
     .user-actions {
