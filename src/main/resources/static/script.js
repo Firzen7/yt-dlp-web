@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (response.status === 401) {
-                window.location.href = '/login.html';
+                window.location.href = '/login';
                 return;
             }
             if (!response.ok) throw new Error('Could not retrieve resolutions');
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
         await fetch('/api/logout', { method: 'POST' });
-        window.location.href = '/login.html';
+        window.location.href = '/login';
     });
 
     // Custom filename functionality
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 if (response.status === 401) {
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                     return;
                 }
 
@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (response.status === 401) {
-                window.location.href = '/login.html';
+                window.location.href = '/login';
                 return;
             }
 
@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch(`/api/status/${taskId}`);
 
             if (response.status === 401) {
-                window.location.href = '/login.html';
+                window.location.href = '/login';
                 return;
             }
 
@@ -731,7 +731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch(`/api/cancel/${currentTaskId}`, { method: 'POST' });
 
             if (response.status === 401) {
-                window.location.href = '/login.html';
+                window.location.href = '/login';
                 return;
             }
 
@@ -756,7 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         })
             .then(res => {
                 if (res.status === 401) {
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                     throw new Error('Not logged in');
                 }
                 if (!res.ok) throw new Error('Failed to decode URL on backend');
@@ -1028,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (response.status === 401) {
-                window.location.href = '/login.html';
+                window.location.href = '/login';
                 return;
             }
 
@@ -1045,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Redirect to login after 2 seconds
                 setTimeout(() => {
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                 }, 2000);
             } else {
                 const errorKey = response.status === 400
