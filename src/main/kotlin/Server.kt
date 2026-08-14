@@ -223,8 +223,9 @@ private fun Application.configureRoutes(userManager: UserManager) {
         get("/api/file/{taskId}") { provideDownloadedFile(call) }
         get("/api/version") { provideVersion(call) }
         get("/") { provideWebpage(call) }
-        get("/index.html") { provideProtectedIndex(call) }
-        get("/login.html") { provideProtectedLogin(call) }
+        get("/login") { provideLoginPage(call) }
+        get("/index.html") { redirectToCanonicalPage(call, "/") }
+        get("/login.html") { redirectToCanonicalPage(call, "/login") }
         post("/api/title") { handleVideoTitleRequest(call) }
         post("/api/resolutions") { handleResolutionRequest(call) }
         post("/api/decode") { decodeBase64Url(call) }
@@ -971,41 +972,41 @@ private suspend fun provideVersion(call: RoutingCall) {
 }
 
 /**
- * Redirects the root URL to the appropriate page while preserving its query string.
+ * Serves the application at the root URL or redirects unauthenticated visitors to login.
  */
 private suspend fun provideWebpage(call: RoutingCall) {
-    val queryString = call.request.queryString()
-    val suffix = if (queryString.isNotEmpty()) "?$queryString" else ""
-
-    val target = if (call.sessions.get<UserSession>() == null) {
-        "/login.html$suffix"
-    } else {
-        "/index.html$suffix"
-    }
-
-    call.respondRedirect(target)
-}
-
-/**
- * Serves the application page only to authenticated users.
- */
-private suspend fun provideProtectedIndex(call: RoutingCall) {
     if (call.sessions.get<UserSession>() == null) {
-        call.respondRedirect("/login.html")
+        call.respondRedirect(call.pathWithQuery("/login"))
     } else {
         respondStaticHtml(call, "static/index.html")
     }
 }
 
 /**
- * Serves the login page only when the visitor has no active session.
+ * Serves the login page or returns authenticated visitors to the application root.
  */
-private suspend fun provideProtectedLogin(call: RoutingCall) {
+private suspend fun provideLoginPage(call: RoutingCall) {
     if (call.sessions.get<UserSession>() != null) {
-        call.respondRedirect("/index.html")
+        call.respondRedirect(call.pathWithQuery("/"))
     } else {
         respondStaticHtml(call, "static/login.html")
     }
+}
+
+/**
+ * Permanently redirects an old HTML page URL to its canonical route.
+ */
+private suspend fun redirectToCanonicalPage(call: RoutingCall, path: String) {
+    call.respondRedirect(call.pathWithQuery(path), permanent = true)
+}
+
+/**
+ * Appends the current request query string to a redirect destination.
+ */
+private fun ApplicationCall.pathWithQuery(path: String): String {
+    val queryString = request.queryString()
+
+    return if (queryString.isEmpty()) path else "$path?$queryString"
 }
 
 /**
