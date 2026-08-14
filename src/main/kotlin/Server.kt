@@ -70,8 +70,8 @@ private data class DownloadRequest(
     val resolution: Resolution?,
     val customFilename: String
 ) {
-    val audioOnly: Boolean get() = format == "mp3"
-    val forceMp3Conversion: Boolean get() = audioOnly && audioConversion == "mp3"
+    val audioOnly: Boolean get() = format == AUDIO_CONVERSION_MP3
+    val forceMp3Conversion: Boolean get() = audioOnly && audioConversion == AUDIO_CONVERSION_MP3
 }
 
 /**
@@ -503,17 +503,17 @@ private suspend fun requireDownloadUser(call: RoutingCall): String? {
  */
 private suspend fun readDownloadRequest(call: RoutingCall): DownloadRequest {
     val body = JSONObject(call.receiveText())
-    val format = body.optString("format", "video")
-        .takeIf { it == "video" || it == "mp3" } ?: "video"
+    val format = body.optString("format", VIDEO_MODE)
+        .takeIf { it == VIDEO_MODE || it == AUDIO_CONVERSION_MP3 } ?: VIDEO_MODE
     val audioConversion = body.optString("audioConversion", "fastest")
         .lowercase()
-        .takeIf { it == "fastest" || it == "mp3" } ?: "fastest"
+        .takeIf { it == "fastest" || it == AUDIO_CONVERSION_MP3 } ?: "fastest"
 
     return DownloadRequest(
         body.optString("url", "").sanitizeVideoUrl(),
         format,
         audioConversion,
-        readSelectedResolution(body).takeIf { format == "video" },
+        readSelectedResolution(body).takeIf { format == VIDEO_MODE },
         sanitizeFilename(body.optString("filename", ""))
     )
 }
@@ -569,11 +569,13 @@ private fun logDownloadStarted(context: DownloadContext) {
             "Audio conversion: ${request.audioConversion}"
     )
 
+    val mode = if(request.audioOnly) AUDIO_MODE else VIDEO_MODE
+
     PersistentLogger.logAction(
         LogLevel.INFO,
         context.username,
         context.clientAddress,
-        "Started ${request.format} download of ${request.url}" +
+        "Started $mode download of ${request.url}" +
             " (${downloadDetails(request)})"
     )
 }
@@ -1564,7 +1566,7 @@ private fun addAudioArguments(
     if (!options.audioOnly) return
 
     if (options.forceMp3Conversion || slowAudioConversion) {
-        command.addAll(listOf("--extract-audio", "--audio-format", "mp3"))
+        command.addAll(listOf("--extract-audio", "--audio-format", AUDIO_CONVERSION_MP3))
     } else {
         command.addAll(listOf("-f", "bestaudio[ext=m4a]"))
     }

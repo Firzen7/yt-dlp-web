@@ -724,6 +724,7 @@ input:disabled+.slider {
     border: 1px solid var(--border-glow);
     color: #e2b0ff;
     padding: 0 48px 0 20px;
+    overflow: hidden;
 }
 
 .cancel-download-btn {
