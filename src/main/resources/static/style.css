@@ -455,7 +455,7 @@ input:disabled+.slider {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
 }
 
 .audio-options-label {
