@@ -563,6 +563,10 @@ input:disabled+.slider {
     color: #ff6b63;
 }
 
+#resolution-loader[hidden] {
+    display: none;
+}
+
 .resolution-options-choices {
     display: flex;
     min-width: 0;
