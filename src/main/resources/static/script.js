@@ -140,6 +140,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         resolutionResults?.classList.add('is-empty');
     };
 
+    const clearLoadedResolutions = () => {
+        clearDynamicResolutionOptions();
+        loadedResolutionUrl = null;
+        loadedResolutions = [];
+
+        const bestInput = resolutionChoices?.querySelector('[data-default-resolution] input');
+        if (bestInput) bestInput.checked = true;
+
+        setResolutionStatus();
+        updateResolutionControlState();
+    };
+
     const cancelResolutionLoad = () => {
         resolutionRequestController?.abort();
         resolutionRequestController = null;
@@ -664,6 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Clear input field on success
         document.getElementById('video-url').value = '';
+        clearLoadedResolutions();
 
         // Trigger automatic download
         const a = document.createElement('a');
