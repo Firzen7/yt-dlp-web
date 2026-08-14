@@ -172,6 +172,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (selected) selected.checked = true;
     };
 
+    const selectHighestResolution = () => {
+        const highest = resolutionResults?.querySelector('input');
+        if (!highest) return;
+
+        highest.checked = true;
+        window.appPreferences?.set('videoResolution', highest.value);
+    };
+
     const renderResolutionOptions = (url, resolutions) => {
         clearDynamicResolutionOptions();
 
@@ -182,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         loadedResolutionUrl = url;
         loadedResolutions = resolutions;
-        selectPreferredResolution();
+        selectHighestResolution();
 
         const statusKey = resolutions.length ? null : 'download.video.noResolutions';
         setResolutionStatus(statusKey, false, !resolutions.length);
@@ -198,13 +206,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             unique.set(`${value.width}x${value.height}`, value);
         });
 
-        return Array.from(unique.values());
+        return Array.from(unique.values()).sort((first, second) => {
+            return second.height - first.height || second.width - first.width;
+        });
     };
 
     const currentResolutionUrl = () => urlInput?.value.trim() || '';
 
     const resolutionsAreStale = () => {
         return loadedResolutions.length > 0 && loadedResolutionUrl !== currentResolutionUrl();
+    };
+
+    const useLoadedResolutions = (url) => {
+        if (loadedResolutionUrl !== url) return false;
+
+        const selected = resolutionOptions?.querySelector('input:checked');
+        if (selected?.value === 'best') selectHighestResolution();
+
+        const statusKey = loadedResolutions.length ? null : 'download.video.noResolutions';
+        setResolutionStatus(statusKey, false, !loadedResolutions.length);
+        updateResolutionControlState();
+        return true;
     };
 
     const updateResolutionSelectTitle = (stale) => {
@@ -248,6 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             urlInput?.reportValidity();
             return;
         }
+        if (useLoadedResolutions(url)) return;
 
         cancelResolutionLoad();
         const controller = new AbortController();
