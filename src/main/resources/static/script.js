@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             setText(statusText, statusKey);
                         } else {
                             setText(statusText, 'download.status.downloading', {
-                                progress: currentMaxProgress
+                                progress: Math.floor(currentMaxProgress)
                             });
                         }
                     }
