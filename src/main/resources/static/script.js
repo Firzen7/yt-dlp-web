@@ -940,11 +940,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         newPasswordInput.value = '';
         confirmNewPasswordInput.value = '';
         clearPasswordFeedback();
+        window.passwordVisibility.reset(changePasswordForm);
         
-        // Re-enable inputs if they were disabled previously
-        currentPasswordInput.disabled = false;
-        newPasswordInput.disabled = false;
-        confirmNewPasswordInput.disabled = false;
+        window.passwordVisibility.setDisabled(changePasswordForm, false);
         savePasswordBtn.disabled = false;
         document.getElementById('cancel-password-btn').disabled = false;
         if (closePasswordBtn) closePasswordBtn.disabled = false;
@@ -1036,10 +1034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setText(passwordSuccessEl, 'password.success');
                 passwordSuccessEl.classList.remove('hidden');
                 
-                // Disable inputs and buttons
-                currentPasswordInput.disabled = true;
-                newPasswordInput.disabled = true;
-                confirmNewPasswordInput.disabled = true;
+                window.passwordVisibility.setDisabled(changePasswordForm, true);
                 document.getElementById('cancel-password-btn').disabled = true;
                 if (closePasswordBtn) closePasswordBtn.disabled = true;
 

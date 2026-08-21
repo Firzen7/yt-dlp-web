@@ -94,8 +94,16 @@
             <form id="login-form" style="width: 100%;">
                 <input type="text" name="username" id="username" class="login-input"
                     data-i18n-placeholder="login.usernamePlaceholder" required autofocus>
-                <input type="password" name="password" id="password" class="login-input"
-                    data-i18n-placeholder="login.passwordPlaceholder" required>
+                <div class="password-input-wrapper login-password-wrapper">
+                    <input type="password" name="password" id="password" class="login-input password-input"
+                        data-i18n-placeholder="login.passwordPlaceholder" autocomplete="current-password" required>
+                    <button type="button" class="password-visibility-toggle" data-password-target="password"
+                        data-i18n-title="password.visibility.show"
+                        data-i18n-aria-label="password.visibility.show" aria-controls="password"
+                        aria-pressed="false">
+                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
 
                 <button type="submit" class="login-btn">
                     <span data-i18n="login.submit"></span>
@@ -107,6 +115,7 @@
 
     <script src="/preferences.js"></script>
     <script src="/i18n.js"></script>
+    <script src="/password-visibility.js"></script>
     <script src="/login.js"></script>
 </body>
 

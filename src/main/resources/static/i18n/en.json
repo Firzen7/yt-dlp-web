@@ -55,6 +55,8 @@
   "password.currentPlaceholder": "Current password...",
   "password.newPlaceholder": "New password...",
   "password.confirmPlaceholder": "Confirm new password...",
+  "password.visibility.show": "Show password",
+  "password.visibility.hide": "Hide password",
   "password.strength.tooWeak": "Strength: Very weak",
   "password.strength.weak": "Strength: Weak",
   "password.strength.strong": "Strength: Strong",
