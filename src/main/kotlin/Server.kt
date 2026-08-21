@@ -25,6 +25,25 @@ import kotlinx.serialization.json.Json
 import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import net.firzen.web.logging.PersistentLogger
+import net.firzen.web.tools.AUDIO_CONVERSION_MP3
+import net.firzen.web.tools.AUDIO_MODE
+import net.firzen.web.tools.DOWNLOAD_DIRECTORY
+import net.firzen.web.tools.JS_RUNTIME_PATH
+import net.firzen.web.tools.JS_RUNTIME_TYPE
+import net.firzen.web.tools.LOGIN_SESSION_LENGTH
+import net.firzen.web.tools.PROCESS_TIMEOUT
+import net.firzen.web.tools.SERVER_PORT
+import net.firzen.web.tools.UNKNOWN_USER
+import net.firzen.web.tools.USERS_FILE
+import net.firzen.web.tools.VIDEO_MODE
+import net.firzen.web.tools.await
+import net.firzen.web.tools.destroyProcessTree
+import net.firzen.web.tools.downloadFile
+import net.firzen.web.tools.isValidUrl
+import net.firzen.web.tools.respondJson
+import net.firzen.web.tools.runProcess
+import net.firzen.web.tools.sanitizeVideoUrl
+import net.firzen.web.tools.startsWithAny
 import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
@@ -1321,7 +1340,7 @@ private fun buildMediaFormatCommand(videoUrl: String): List<String> {
     return listOf(
         "yt-dlp",
         "--ignore-config",
-        "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH",
+        "--js-runtimes", "${JS_RUNTIME_TYPE}:${JS_RUNTIME_PATH}",
         "--no-cache-dir",
         "--no-playlist",
         "--print", MEDIA_FORMAT_TEMPLATE,
@@ -1515,7 +1534,7 @@ private fun buildYtDlpCommand(
 private fun baseYtDlpCommand(outputDir: File): MutableList<String> {
     return mutableListOf(
         "yt-dlp", "-v",
-        "--js-runtimes", "$JS_RUNTIME_TYPE:$JS_RUNTIME_PATH",
+        "--js-runtimes", "${JS_RUNTIME_TYPE}:${JS_RUNTIME_PATH}",
         "--downloader-args", "ffmpeg:-timeout ${PROCESS_TIMEOUT * 1000000}",
         "--match-filters", "!is_live",
         "--no-cache-dir", "--no-playlist",

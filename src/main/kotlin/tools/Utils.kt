@@ -1,4 +1,4 @@
-package net.firzen.web
+package net.firzen.web.tools
 
 import kotlinx.io.IOException
 import net.firzen.web.logging.Logger
