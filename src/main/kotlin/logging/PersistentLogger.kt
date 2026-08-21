@@ -1,8 +1,8 @@
 package net.firzen.web.logging
 
-import net.firzen.web.LOG_DIRECTORY
-import net.firzen.web.UNKNOWN_USER
-import net.firzen.web.dateTimeString
+import net.firzen.web.tools.LOG_DIRECTORY
+import net.firzen.web.tools.UNKNOWN_USER
+import net.firzen.web.tools.dateTimeString
 import org.joda.time.DateTime
 import java.io.File
 

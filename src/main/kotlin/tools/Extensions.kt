@@ -1,16 +1,18 @@
-package net.firzen.web
+package net.firzen.web.tools
 
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.firzen.web.logging.LogLevel
 import net.firzen.web.logging.Logger
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import java.io.BufferedReader
+import java.net.URI
 
 /**
  * Reports whether this string contains an absolute URL with both a scheme and host.
@@ -19,7 +21,7 @@ fun String.isValidUrl(): Boolean {
     Logger.i("isValidUrl()")
 
     return try {
-        val uri = java.net.URI(this)
+        val uri = URI(this)
         uri.scheme != null && uri.host != null
     } catch (_: Exception) {
         false
@@ -76,7 +78,7 @@ fun BufferedReader.consumeLines(
     tag: String,
     fullLog: StringBuilder,
     progressCallback: (Double?) -> Unit
-): kotlinx.coroutines.Job {
+): Job {
     return CoroutineScope(Dispatchers.IO).launch {
         forEachLine { line ->
             synchronized(fullLog) {

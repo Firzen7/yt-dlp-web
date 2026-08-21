@@ -1,8 +1,9 @@
-package net.firzen.web
+package net.firzen.web.tools
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import net.firzen.web.logging.LogLevel
@@ -31,7 +32,7 @@ suspend fun runProcess(
     try {
         return withTimeout(PROCESS_TIMEOUT * 1000) {
             withContext(Dispatchers.IO) {
-                kotlinx.coroutines.runInterruptible {
+                runInterruptible {
                     process.waitFor()
                 }
             }
@@ -56,7 +57,7 @@ suspend fun Process.await(timeoutMs: Long): Int {
     return try {
         withTimeout(timeoutMs) {
             withContext(Dispatchers.IO) {
-                kotlinx.coroutines.runInterruptible {
+                runInterruptible {
                     waitFor()
                 }
             }

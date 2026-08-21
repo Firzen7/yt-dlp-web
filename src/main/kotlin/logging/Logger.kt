@@ -2,7 +2,7 @@ package net.firzen.web.logging
 
 /**
  * A custom Logger class with an interface similar to Timber.
- * Currently uses println for output.
+ * Currently, it uses println for output.
  */
 object Logger {
     /**

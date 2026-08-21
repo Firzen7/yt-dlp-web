@@ -1,5 +1,7 @@
 package net.firzen.web
 
+import net.firzen.web.tools.UNKNOWN_USER
+import net.firzen.web.tools.USERS_FILE
 import java.io.Console
 import java.io.File
 

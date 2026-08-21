@@ -1,4 +1,4 @@
-package net.firzen.web
+package net.firzen.web.tools
 
 // Placeholder used when an action cannot be associated with an authenticated user.
 const val UNKNOWN_USER = "unknown"
