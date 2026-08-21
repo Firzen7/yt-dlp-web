@@ -85,7 +85,8 @@
                     <div class="resolution-options-label"
                         data-i18n="download.video.resolutionPrompt"></div>
                     <div class="resolution-options-choices" id="resolution-options-choices">
-                        <label class="resolution-option" data-default-resolution>
+                        <label class="resolution-option" data-default-resolution
+                            data-i18n-title="download.video.bestResolutionTooltip">
                             <input type="radio" name="video-resolution" value="best" checked>
                             <span data-i18n="download.video.bestResolution"></span>
                         </label>
@@ -105,11 +106,11 @@
                 <div class="audio-options hidden" id="audio-options">
                     <div class="audio-options-label" data-i18n="download.audio.conversionPrompt"></div>
                     <div class="audio-options-choices">
-                        <label class="audio-option">
+                        <label class="audio-option" data-i18n-title="download.audio.fastestTooltip">
                             <input type="radio" name="audio-conversion" value="fastest" checked>
                             <span data-i18n="download.audio.fastest"></span>
                         </label>
-                        <label class="audio-option">
+                        <label class="audio-option" data-i18n-title="download.audio.mp3Tooltip">
                             <input type="radio" name="audio-conversion" value="mp3">
                             <span data-i18n="download.audio.mp3"></span>
                         </label>
