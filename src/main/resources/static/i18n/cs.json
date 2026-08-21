@@ -55,6 +55,8 @@
   "password.currentPlaceholder": "Aktuální heslo...",
   "password.newPlaceholder": "Nové heslo...",
   "password.confirmPlaceholder": "Potvrdit nové heslo...",
+  "password.visibility.show": "Zobrazit heslo",
+  "password.visibility.hide": "Skrýt heslo",
   "password.strength.tooWeak": "Síla: Příliš slabé",
   "password.strength.weak": "Síla: Slabé",
   "password.strength.strong": "Síla: Silné",

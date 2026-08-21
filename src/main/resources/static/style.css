@@ -902,8 +902,61 @@ input:disabled+.slider {
     transform: translateY(-2px);
 }
 
-/* Fix input style inside modal */
-.modal-overlay .input-group input[type="password"] {
+/* Password fields and visibility controls */
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.password-input-wrapper .password-input {
+    padding-right: 56px !important;
+}
+
+.login-password-wrapper {
+    height: 55px;
+    margin-bottom: 20px;
+}
+
+.login-password-wrapper .login-input {
+    margin-bottom: 0;
+}
+
+.password-visibility-toggle {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    transform: translateY(-50%);
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.password-visibility-toggle:hover,
+.password-visibility-toggle:focus-visible {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.password-visibility-toggle:focus-visible {
+    outline: 2px solid #00c3ff;
+    outline-offset: -2px;
+}
+
+.password-visibility-toggle:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.modal-overlay .input-group .password-input {
     width: 100%;
     height: 100%;
     background-color: var(--primary-bg);
@@ -916,7 +969,7 @@ input:disabled+.slider {
     outline: none;
 }
 
-.modal-overlay .input-group input[type="password"]::placeholder {
+.modal-overlay .input-group .password-input::placeholder {
     color: var(--text-muted);
 }
 
