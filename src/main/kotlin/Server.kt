@@ -43,11 +43,11 @@ import net.firzen.web.tools.isValidUrl
 import net.firzen.web.tools.respondJson
 import net.firzen.web.tools.runProcess
 import net.firzen.web.tools.sanitizeVideoUrl
-import net.firzen.web.tools.startsWithAny
 import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.URI
 import java.net.URLEncoder
 import java.util.Base64
 import java.util.UUID
@@ -128,6 +128,8 @@ private data class MediaDownloadOptions(
 private val tasks = ConcurrentHashMap<String, DownloadTask>()
 private val taskJobs = ConcurrentHashMap<String, Job>()
 private val taskProcesses = ConcurrentHashMap<String, Process>()
+private val YOUTUBE_DOMAINS = setOf("youtube.com", "youtu.be", "youtube-nocookie.com")
+private val YOUTUBE_VIDEO_ID_PATTERN = Regex("^[A-Za-z0-9_-]{11}$")
 
 private const val MEDIA_FORMAT_TEMPLATE =
     "%(formats.:.{format_id,width,height,fps,ext,vcodec,acodec})#j"
@@ -1282,24 +1284,98 @@ private suspend fun resolveVideoTitle(url: String): String? {
 }
 
 /**
- * Reports whether a URL belongs to one of the supported YouTube host forms.
+ * Reports whether an HTTP URL belongs to a recognized YouTube domain family.
  */
-private fun isYoutubeUrl(url: String): Boolean {
-    return url.startsWithAny(
-        "https://www.youtube.com",
-        "https://m.youtube.com",
-        "https://youtube.com"
-    )
+internal fun isYoutubeUrl(url: String): Boolean {
+    val uri = try {
+        URI(url)
+    } catch (_: Exception) {
+        return false
+    }
+
+    if (!uri.scheme.equals("http", ignoreCase = true) &&
+        !uri.scheme.equals("https", ignoreCase = true)
+    ) {
+        return false
+    }
+
+    val host = uri.host?.lowercase()?.trimEnd('.') ?: return false
+
+    return YOUTUBE_DOMAINS.any { domain ->
+        host == domain || host.endsWith(".$domain")
+    }
 }
 
 /**
  * Fetches a YouTube title through the public oEmbed endpoint.
  */
 private fun fetchYoutubeTitle(url: String): String? {
-    val jsonUrl = "https://www.youtube.com/oembed?url=$url&format=json"
+    val normalizedUrl = normalizeYoutubeUrl(url)
+    val encodedUrl = URLEncoder.encode(normalizedUrl, Charsets.UTF_8)
+    val jsonUrl = "https://www.youtube.com/oembed?url=$encodedUrl&format=json"
     val response = JSONObject(downloadFile(jsonUrl, OkHttpClient()))
 
     return if (response.has("title")) response.getString("title") else null
+}
+
+/**
+ * Converts a recognized YouTube URL to the canonical www.youtube.com host.
+ */
+internal fun normalizeYoutubeUrl(url: String): String {
+    val uri = try {
+        URI(url)
+    } catch (_: Exception) {
+        return url
+    }
+
+    val host = uri.host?.lowercase()?.trimEnd('.') ?: return url
+
+    return if (host == "youtu.be" || host.endsWith(".youtu.be")) {
+        normalizeShortYoutubeUrl(uri)
+    } else {
+        replaceYoutubeHost(uri)
+    }
+}
+
+/**
+ * Converts a shortened YouTube path into the equivalent canonical watch URL.
+ */
+private fun normalizeShortYoutubeUrl(uri: URI): String {
+    val videoId = uri.rawPath.orEmpty().trim('/').substringBefore('/')
+
+    if (!YOUTUBE_VIDEO_ID_PATTERN.matches(videoId)) {
+        return replaceYoutubeHost(uri)
+    }
+
+    val query = listOfNotNull(
+        "v=$videoId",
+        uri.rawQuery?.takeIf { it.isNotEmpty() }
+    ).joinToString("&")
+
+    return "https://www.youtube.com/watch?$query${uri.rawFragmentSuffix()}"
+}
+
+/**
+ * Rebuilds a YouTube URL with its canonical host while preserving its resource.
+ */
+private fun replaceYoutubeHost(uri: URI): String {
+    val path = uri.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
+
+    return "https://www.youtube.com$path${uri.rawQuerySuffix()}${uri.rawFragmentSuffix()}"
+}
+
+/**
+ * Returns this URI's encoded query with its separator when one is present.
+ */
+private fun URI.rawQuerySuffix(): String {
+    return rawQuery?.let { "?$it" }.orEmpty()
+}
+
+/**
+ * Returns this URI's encoded fragment with its separator when one is present.
+ */
+private fun URI.rawFragmentSuffix(): String {
+    return rawFragment?.let { "#$it" }.orEmpty()
 }
 
 /**

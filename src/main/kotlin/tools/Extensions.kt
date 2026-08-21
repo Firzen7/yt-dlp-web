@@ -65,13 +65,6 @@ fun DateTime.dateTimeString(): String {
 }
 
 /**
- * Reports whether this string starts with at least one supplied prefix.
- */
-fun String.startsWithAny(vararg prefixes: String): Boolean {
-    return prefixes.any { this.startsWith(it) }
-}
-
-/**
  * Consumes process output asynchronously, appends tagged lines, and reports parsed percentages.
  */
 fun BufferedReader.consumeLines(
