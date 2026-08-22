@@ -103,6 +103,41 @@ fun changePassword(username: String) {
 }
 
 /**
+ * Prints every existing username in a compact terminal list.
+ */
+fun listUsers() {
+    val userManager = UserManager(File(USERS_FILE))
+
+    try {
+        val users = userManager.listUsers()
+
+        if (users.isEmpty()) {
+            println("No users found.")
+            return
+        }
+
+        println("Users (${users.size}):")
+        users.forEach { println("  $it") }
+    } catch (e: Exception) {
+        println("Failed to list users: ${e.message}")
+    }
+}
+
+/**
+ * Deletes the requested user and reports the result to the terminal.
+ */
+fun deleteUser(username: String) {
+    val userManager = UserManager(File(USERS_FILE))
+
+    try {
+        userManager.deleteUser(username)
+        println("User $username deleted successfully.")
+    } catch (e: Exception) {
+        println("Failed to delete user: ${e.message}")
+    }
+}
+
+/**
  * Returns the active system console or explains why an interactive command cannot continue.
  */
 private fun availableConsole(): Console? {
