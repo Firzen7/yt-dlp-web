@@ -127,7 +127,27 @@ The command interactively asks for a username, password, and confirmation. Usern
 java -jar yt-dlp-web.jar passwd <username>
 ```
 
-The user must already exist. Both user-management commands require a real interactive console; piped input and environments without `System.console()` are not supported.
+The user must already exist. The `adduser` and `passwd` commands require a real interactive console; piped input and environments without `System.console()` are not supported.
+
+### List users
+
+```bash
+java -jar yt-dlp-web.jar listusers
+```
+
+### Delete a user
+
+```bash
+java -jar yt-dlp-web.jar deluser <username>
+```
+
+The user must already exist. Deletion does not require interactive confirmation.
+
+### Show CLI help
+
+```bash
+java -jar yt-dlp-web.jar --help
+```
 
 Passwords are stored as salted scrypt hashes in a Werkzeug-compatible text format. Plaintext passwords are not written to disk.
 

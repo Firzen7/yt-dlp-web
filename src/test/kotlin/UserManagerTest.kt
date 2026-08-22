@@ -144,6 +144,64 @@ class UserManagerTest {
     }
 
     /**
+     * Verifies that stored usernames are returned once in alphabetical order.
+     */
+    @Test
+    fun `listUsers returns existing usernames in order`() {
+        val manager = createManager()
+
+        manager.createUser("charlie", "pass3")
+        manager.createUser("alice", "pass1")
+        manager.createUser("bob", "pass2")
+
+        assertEquals(listOf("alice", "bob", "charlie"), manager.listUsers())
+    }
+
+    /**
+     * Verifies that listing users from a missing credential file returns an empty list.
+     */
+    @Test
+    fun `listUsers returns empty list when file is missing`() {
+        assertTrue(createManager().listUsers().isEmpty())
+    }
+
+    /**
+     * Verifies that deleting one user preserves other credentials and unrelated file lines.
+     */
+    @Test
+    fun `deleteUser removes only requested user`() {
+        val file = File(tempDir, "users.conf")
+        val manager = UserManager(file)
+        manager.createUser("alice", "pass1")
+        manager.createUser("bob", "pass2")
+        file.appendText("unrecognized file content\n")
+
+        manager.deleteUser("alice")
+
+        assertEquals(listOf("bob"), manager.listUsers())
+        assertFalse(manager.userExists("alice"))
+        assertTrue(manager.userExists("bob"))
+        assertTrue(file.readText().contains("unrecognized file content"))
+    }
+
+    /**
+     * Verifies that deleting an unknown user fails without changing the credential file.
+     */
+    @Test
+    fun `deleteUser rejects unknown user without changing file`() {
+        val file = File(tempDir, "users.conf")
+        val manager = UserManager(file)
+        manager.createUser("alice", "pass1")
+        val originalContent = file.readText()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            manager.deleteUser("missing")
+        }
+
+        assertEquals(originalContent, file.readText())
+    }
+
+    /**
      * Verifies that several users retain independent credentials in one file.
      */
     @Test

@@ -156,6 +156,38 @@ class UserManager(private val usersFile: File) {
         return readEntries().any { it.username == username }
     }
 
+    /**
+     * Returns all distinct usernames in a stable alphabetical order.
+     */
+    fun listUsers(): List<String> {
+        return synchronized(lock) {
+            readEntries().map { it.username }.distinct().sorted()
+        }
+    }
+
+    /**
+     * Removes the given user's credential record from the users file.
+     *
+     * @throws IllegalArgumentException if the username is blank or does not exist
+     */
+    fun deleteUser(username: String) {
+        require(username.isNotBlank()) { "Username must not be blank" }
+
+        synchronized(lock) {
+            if (!userExists(username)) {
+                throw IllegalArgumentException("User '$username' does not exist")
+            }
+
+            val remainingLines = usersFile.readLines().filterNot { line ->
+                val separatorIndex = line.indexOf(':')
+                separatorIndex >= 0 && line.substring(0, separatorIndex) == username
+            }
+            val content = remainingLines.joinToString("\n")
+
+            usersFile.writeText(if (content.isEmpty()) "" else "$content\n")
+        }
+    }
+
     // -- Internal helpers --
 
     /**
