@@ -1,6 +1,5 @@
 package net.firzen.web
 
-import net.firzen.web.logging.Logger
 import java.io.File
 
 private const val DEVELOPMENT_JAR_NAME = "yt-dlp-web.jar"
@@ -9,8 +8,6 @@ private const val DEVELOPMENT_JAR_NAME = "yt-dlp-web.jar"
  * Dispatches the command-line request to the server or user-management command.
  */
 fun main(args: Array<String>) {
-    Logger.i("main()")
-
     if (args.isEmpty()) {
         printUsageError("Missing command.")
         return
@@ -25,7 +22,7 @@ fun main(args: Array<String>) {
 private fun dispatchCommand(args: Array<String>) {
     when (val command = args.first().lowercase()) {
         "server" -> startServer()
-        "adduser" -> addUser()
+        "adduser" -> addUser(args.getOrNull(1))
         "passwd" -> runUsernameCommand(args, "passwd", ::changePassword)
         "listusers" -> listUsers()
         "deluser" -> runUsernameCommand(args, "deluser", ::deleteUser)
@@ -77,7 +74,7 @@ internal fun usageText(jarName: String = currentJarName()): String {
 
         Commands:
           server                   Start the embedded web server
-          adduser                  Interactively create a user
+          adduser [username]       Create a user; prompts for the username when omitted
           passwd <username>        Interactively change a user's password
           listusers                List all existing users
           deluser <username>       Delete a user

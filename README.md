@@ -117,9 +117,10 @@ The process runs in the foreground until stopped.
 
 ```bash
 java -jar yt-dlp-web.jar adduser
+java -jar yt-dlp-web.jar adduser <username>
 ```
 
-The command interactively asks for a username, password, and confirmation. Usernames must be non-empty, cannot contain `:`, and cannot be the reserved name `unknown`.
+Without an argument, the command interactively asks for a username, password, and confirmation. When a username is supplied, it displays that username and asks only for the password and confirmation. Usernames must be non-empty, cannot contain `:`, and cannot be the reserved name `unknown`.
 
 ### Change a user's password
 

@@ -8,7 +8,6 @@ import com.natpryce.konfig.intType
 import com.natpryce.konfig.longType
 import com.natpryce.konfig.overriding
 import com.natpryce.konfig.stringType
-import net.firzen.web.logging.Logger
 import java.io.File
 
 private val conf = systemProperties() overriding
@@ -43,8 +42,6 @@ val USERS_FILE = try {
  * Selects the installed configuration or creates it from the bundled defaults.
  */
 private fun availableConfigPath(): String {
-    Logger.i("availableConfigPath()")
-
     if (File(CONFIG_FILE).exists()) {
         return CONFIG_FILE
     } else {

@@ -51,12 +51,12 @@ private data class PasswordInput(
 }
 
 /**
- * Reads a new user's credentials from the console and creates the account.
+ * Reads a new user's password and prompts for the username when none was supplied.
  */
-fun addUser() {
+fun addUser(suppliedUsername: String? = null) {
     val userManager = UserManager(File(USERS_FILE))
     val console = availableConsole() ?: return
-    val username = readNewUsername(console) ?: return
+    val username = resolveNewUsername(console, suppliedUsername) ?: return
 
     val password = readConfirmedPassword(
         console,
@@ -72,6 +72,20 @@ fun addUser() {
     } finally {
         password.clear()
     }
+}
+
+/**
+ * Uses a supplied username or reads one interactively when it was omitted.
+ */
+private fun resolveNewUsername(console: Console, suppliedUsername: String?): String? {
+    if (suppliedUsername == null) {
+        return readNewUsername(console)
+    }
+
+    val username = validateNewUsername(suppliedUsername) ?: return null
+    println("Creating new user: $username")
+
+    return username
 }
 
 /**
@@ -156,8 +170,20 @@ private fun availableConsole(): Console? {
 private fun readNewUsername(console: Console): String? {
     val username = console.readLine("Enter username: ")
 
+    return validateNewUsername(username)
+}
+
+/**
+ * Rejects usernames that cannot be stored or used by the application.
+ */
+private fun validateNewUsername(username: String?): String? {
     if (username.isNullOrBlank()) {
         println("Username cannot be empty")
+        return null
+    }
+
+    if (username.contains(':')) {
+        println("Username cannot contain ':'")
         return null
     }
 
