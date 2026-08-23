@@ -27,6 +27,14 @@ class UserManager(private val usersFile: File) {
         private const val KEY_LENGTH = 64 // bytes
 
         private const val SALT_LENGTH = 16 // bytes
+        private val USERNAME_PATTERN = Regex("^[A-Za-z0-9]+$")
+
+        /**
+         * Reports whether a username contains only supported letters and digits.
+         */
+        fun isValidUsername(username: String): Boolean {
+            return USERNAME_PATTERN.matches(username)
+        }
     }
 
     private val lock = Any()
@@ -38,8 +46,7 @@ class UserManager(private val usersFile: File) {
      * @throws IllegalArgumentException if the username already exists or is invalid
      */
     fun createUser(username: String, password: String) {
-        require(username.isNotBlank()) { "Username must not be blank" }
-        require(!username.contains(':')) { "Username must not contain ':'" }
+        require(isValidUsername(username)) { "Username may only contain letters and digits" }
         require(password.isNotEmpty()) { "Password must not be empty" }
 
         synchronized(lock) {
@@ -65,7 +72,7 @@ class UserManager(private val usersFile: File) {
      * @throws IllegalArgumentException if the user does not exist or if the new password is empty
      */
     fun changePassword(username: String, newPassword: String) {
-        require(username.isNotBlank()) { "Username must not be blank" }
+        require(isValidUsername(username)) { "Username may only contain letters and digits" }
         require(newPassword.isNotEmpty()) { "New password must not be empty" }
 
         synchronized(lock) {
@@ -101,7 +108,7 @@ class UserManager(private val usersFile: File) {
      *                                  or if the new password is empty
      */
     fun changePassword(username: String, oldPassword: String, newPassword: String) {
-        require(username.isNotBlank()) { "Username must not be blank" }
+        require(isValidUsername(username)) { "Username may only contain letters and digits" }
         require(newPassword.isNotEmpty()) { "New password must not be empty" }
 
         synchronized(lock) {
@@ -136,6 +143,8 @@ class UserManager(private val usersFile: File) {
      * @return true if the username exists and the password matches
      */
     fun validateUser(username: String, password: String): Boolean {
+        if (!isValidUsername(username)) return false
+
         val entries = readEntries()
         val entry = entries.find { it.username == username } ?: return false
 
@@ -153,6 +162,8 @@ class UserManager(private val usersFile: File) {
      * Checks if a user with the given username exists.
      */
     fun userExists(username: String): Boolean {
+        if (!isValidUsername(username)) return false
+
         return readEntries().any { it.username == username }
     }
 
@@ -171,7 +182,7 @@ class UserManager(private val usersFile: File) {
      * @throws IllegalArgumentException if the username is blank or does not exist
      */
     fun deleteUser(username: String) {
-        require(username.isNotBlank()) { "Username must not be blank" }
+        require(isValidUsername(username)) { "Username may only contain letters and digits" }
 
         synchronized(lock) {
             if (!userExists(username)) {
@@ -236,6 +247,8 @@ class UserManager(private val usersFile: File) {
         if (colonIndex < 0) return null
 
         val username = line.substring(0, colonIndex)
+        if (!isValidUsername(username)) return null
+
         val hashPart = line.substring(colonIndex + 1) // e.g. "scrypt:32768:8:1$salt$key"
 
         // The hash part has the format: scrypt:N:r:p$salt$key

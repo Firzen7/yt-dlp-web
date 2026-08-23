@@ -115,6 +115,21 @@ class UserManagerTest {
     }
 
     /**
+     * Verifies that usernames reject every character outside ASCII letters and digits.
+     */
+    @Test
+    fun `createUser rejects unsupported username characters`() {
+        val manager = createManager()
+        val invalidUsernames = listOf("user_name", "user-name", "user name", "uživatel")
+
+        invalidUsernames.forEach { username ->
+            assertThrows(IllegalArgumentException::class.java) {
+                manager.createUser(username, "password")
+            }
+        }
+    }
+
+    /**
      * Verifies that generated credentials use the expected Werkzeug-compatible hash format.
      */
     @Test
@@ -124,9 +139,9 @@ class UserManagerTest {
         val manager = createManager()
 
         // Create a user whose password we know, then validate
-        manager.createUser("werkzeug_compat", "test_password_123")
-        assertTrue(manager.validateUser("werkzeug_compat", "test_password_123"))
-        assertFalse(manager.validateUser("werkzeug_compat", "wrong"))
+        manager.createUser("werkzeugcompat", "test_password_123")
+        assertTrue(manager.validateUser("werkzeugcompat", "test_password_123"))
+        assertFalse(manager.validateUser("werkzeugcompat", "wrong"))
     }
 
     /**

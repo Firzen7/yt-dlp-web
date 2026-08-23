@@ -58,6 +58,11 @@ fun addUser(suppliedUsername: String? = null) {
     val console = availableConsole() ?: return
     val username = resolveNewUsername(console, suppliedUsername) ?: return
 
+    if (userManager.userExists(username)) {
+        println("Error: User '$username' already exists.")
+        return
+    }
+
     val password = readConfirmedPassword(
         console,
         "Enter password: ",
@@ -143,12 +148,43 @@ fun listUsers() {
 fun deleteUser(username: String) {
     val userManager = UserManager(File(USERS_FILE))
 
+    if (!userManager.userExists(username)) {
+        println("Error: User '$username' does not exist.")
+        return
+    }
+
+    val console = availableConsole() ?: return
+    if (!confirmUserDeletion(console, username)) return
+
     try {
         userManager.deleteUser(username)
         println("User $username deleted successfully.")
     } catch (e: Exception) {
         println("Failed to delete user: ${e.message}")
     }
+}
+
+/**
+ * Asks for explicit confirmation before deleting the named user.
+ */
+private fun confirmUserDeletion(console: Console, username: String): Boolean {
+    val response = console.readLine(
+        "Are you sure you want to delete user '%s'? [y/N]: ",
+        username
+    )
+    val confirmed = isDeletionConfirmed(response)
+
+    if (!confirmed) println("User deletion cancelled.")
+
+    return confirmed
+}
+
+/**
+ * Reports whether a terminal response explicitly confirms user deletion.
+ */
+internal fun isDeletionConfirmed(response: String?): Boolean {
+    return response.equals("y", ignoreCase = true) ||
+        response.equals("yes", ignoreCase = true)
 }
 
 /**
@@ -182,8 +218,8 @@ private fun validateNewUsername(username: String?): String? {
         return null
     }
 
-    if (username.contains(':')) {
-        println("Username cannot contain ':'")
+    if (!UserManager.isValidUsername(username)) {
+        println("Username may only contain letters and digits")
         return null
     }
 

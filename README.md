@@ -120,7 +120,7 @@ java -jar yt-dlp-web.jar adduser
 java -jar yt-dlp-web.jar adduser <username>
 ```
 
-Without an argument, the command interactively asks for a username, password, and confirmation. When a username is supplied, it displays that username and asks only for the password and confirmation. Usernames must be non-empty, cannot contain `:`, and cannot be the reserved name `unknown`.
+Without an argument, the command interactively asks for a username, password, and confirmation. When a username is supplied, it displays that username and asks only for the password and confirmation. Existing usernames are rejected before a password is requested. Usernames may contain only ASCII letters and digits, and cannot be the reserved name `unknown`.
 
 ### Change a user's password
 
@@ -142,7 +142,7 @@ java -jar yt-dlp-web.jar listusers
 java -jar yt-dlp-web.jar deluser <username>
 ```
 
-The user must already exist. Deletion does not require interactive confirmation.
+The user must already exist. The command displays the username and requires interactive confirmation before deleting it.
 
 ### Show CLI help
 
