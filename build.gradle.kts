@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "net.firzen.web"
-version = "3.7"
+version = "3.8"
 
 repositories {
     mavenCentral()
@@ -86,5 +86,5 @@ kotlin {
             kotlin.srcDir(generateBuildConfig)
         }
     }
-    jvmToolchain(17)
+    jvmToolchain(11)
 }

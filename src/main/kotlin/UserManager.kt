@@ -4,6 +4,7 @@ import org.bouncycastle.crypto.generators.SCrypt
 import java.io.File
 import java.security.MessageDigest
 import java.security.SecureRandom
+import kotlin.math.log2
 
 /**
  * Manages user credentials stored in a file.
@@ -273,23 +274,16 @@ class UserManager(private val usersFile: File) {
         return UserEntry(username, n, r, p, salt, keyBytes)
     }
 
-    /**
-     * Computes the Shannon entropy of a password based on the size of the character pool
-     * detected (similar to how KeePassXC calculates entropy for generated/manual character-class combinations).
-     */
-    fun computeEntropy(password: String): Float {
-        if (password.isEmpty()) return 0.0f
+    /** Estimates information entropy from the frequency of Unicode symbols in a password. */
+    fun computeEntropy(password: String): Double {
+        val symbols = password.codePoints().toArray()
+        if (symbols.isEmpty()) return 0.0
 
-        var poolSize = 0
-        if (password.any { it.isLowerCase() }) poolSize += 26
-        if (password.any { it.isUpperCase() }) poolSize += 26
-        if (password.any { it.isDigit() }) poolSize += 10
-        if (password.any { !it.isLetterOrDigit() }) poolSize += 32 // Standard symbols set size
-
-        if (poolSize == 0) poolSize = 1 // Prevent log(0)
-
-        val entropy = password.length * (Math.log(poolSize.toDouble()) / Math.log(2.0))
-        return entropy.toFloat()
+        val counts = symbols.toList().groupingBy { symbol -> symbol }.eachCount()
+        return counts.values.sumOf { count ->
+            val probability = count.toDouble() / symbols.size
+            -count * log2(probability)
+        }
     }
 
     /**
