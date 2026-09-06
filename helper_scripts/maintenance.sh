@@ -5,7 +5,6 @@
 # It is to be configured to run regularly using cron.
 
 TARGET="/tmp/yt-dlp-web"
-# TARGET="/home/firzen/tmp"
 
 find "$TARGET" -mindepth 1 -maxdepth 1 -type d -mtime +3 -exec rm -rf {} +
 
