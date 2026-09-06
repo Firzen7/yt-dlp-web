@@ -15,7 +15,7 @@ yt-dlp-web is a self-hosted web frontend for [yt-dlp](https://github.com/yt-dlp/
 
 ## Requirements
 
-- Java 17 or newer.
+- Java 11 or newer.
 - `yt-dlp` available on `PATH`.
 - `ffmpeg` available on `PATH`.
 - A JavaScript runtime supported by yt-dlp. The default configuration uses Node.js at `/usr/bin/node`.
