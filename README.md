@@ -144,7 +144,7 @@ java -jar yt-dlp-web.jar listusers
 java -jar yt-dlp-web.jar deluser <username>
 ```
 
-The user must already exist. The command displays the username and requires interactive confirmation before deleting it.
+The user must already exist. The command displays the username and requires interactive confirmation before deleting it. It then asks whether that user's persistent log file should also be removed.
 
 ### Show the configuration
 

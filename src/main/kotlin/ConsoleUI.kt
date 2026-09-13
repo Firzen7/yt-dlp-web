@@ -1,6 +1,7 @@
 package net.firzen.web
 
 import net.firzen.web.tools.ACTIVE_CONFIG_FILE
+import net.firzen.web.tools.LOG_DIRECTORY
 import net.firzen.web.tools.UNKNOWN_USER
 import net.firzen.web.tools.USERS_FILE
 import java.io.Console
@@ -206,13 +207,17 @@ fun deleteUser(username: String) {
 
     val console = availableConsole() ?: return
     if (!confirmUserDeletion(console, username)) return
+    val deleteLogs = confirmLogDeletion(console, username)
 
     try {
         userManager.deleteUser(username)
         println("User $username deleted successfully.")
     } catch (e: Exception) {
         println("Failed to delete user: ${e.message}")
+        return
     }
+
+    if (deleteLogs) deleteUserLog(username)
 }
 
 /**
@@ -232,6 +237,41 @@ private fun confirmUserDeletion(console: Console, username: String): Boolean {
     if (!confirmed) println("User deletion cancelled.")
 
     return confirmed
+}
+
+/**
+ * Asks whether the named user's persistent log file should also be removed.
+ *
+ * @param console terminal used to read confirmation
+ * @param username user whose log deletion should be confirmed
+ * @return `true` only when log deletion is explicitly confirmed
+ */
+private fun confirmLogDeletion(console: Console, username: String): Boolean {
+    val response = console.readLine(
+        "Delete logs for user '%s' too? [y/N]: ",
+        username
+    )
+
+    return isDeletionConfirmed(response)
+}
+
+/**
+ * Removes the named user's persistent log file and reports the result.
+ *
+ * @param username user whose log file should be removed
+ */
+private fun deleteUserLog(username: String) {
+    val logFile = File(LOG_DIRECTORY, "$username.log")
+
+    try {
+        when {
+            !logFile.exists() -> println("No logs found for user $username.")
+            logFile.delete() -> println("Logs for user $username deleted successfully.")
+            else -> println("Failed to delete logs for user $username.")
+        }
+    } catch (e: Exception) {
+        println("Failed to delete logs for user $username: ${e.message}")
+    }
 }
 
 /**
