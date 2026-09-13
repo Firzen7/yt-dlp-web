@@ -12,6 +12,11 @@ import java.io.File
 object PersistentLogger {
     /**
      * Records an action, its user, and its client's IP address at the requested severity.
+     *
+     * @param logLevel severity assigned to the log entry
+     * @param rawUser authenticated username, or `null` for an unknown user
+     * @param clientAddress network address associated with the action
+     * @param action description of the action to record
      */
     fun logAction(
         logLevel: LogLevel,

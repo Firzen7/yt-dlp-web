@@ -14,6 +14,8 @@ import kotlin.math.log2
  *
  * Example:
  *   admin:scrypt:32768:8:1$7tV3rzHzyFEf7IEC$82f747...
+ *
+ * @param usersFile file containing persisted credential records
  */
 class UserManager(private val usersFile: File) {
 
@@ -32,6 +34,9 @@ class UserManager(private val usersFile: File) {
 
         /**
          * Reports whether a username contains only supported letters and digits.
+         *
+         * @param username username to validate
+         * @return `true` when every character is an ASCII letter or digit
          */
         fun isValidUsername(username: String): Boolean {
             return USERNAME_PATTERN.matches(username)
@@ -44,7 +49,10 @@ class UserManager(private val usersFile: File) {
      * Creates a new user with the given username and password.
      * The password is hashed using scrypt in a format compatible with Werkzeug.
      *
+     * @param username unique username to create
+     * @param password plaintext password to hash and store
      * @throws IllegalArgumentException if the username already exists or is invalid
+     * @throws java.io.IOException when the credential file cannot be read or written
      */
     fun createUser(username: String, password: String) {
         require(isValidUsername(username)) { "Username may only contain letters and digits" }
@@ -70,7 +78,10 @@ class UserManager(private val usersFile: File) {
      * Changes the password for the given user.
      * The password is hashed using scrypt in a format compatible with Werkzeug.
      *
+     * @param username existing user whose password should change
+     * @param newPassword replacement plaintext password
      * @throws IllegalArgumentException if the user does not exist or if the new password is empty
+     * @throws java.io.IOException when the credential file cannot be read or written
      */
     fun changePassword(username: String, newPassword: String) {
         require(isValidUsername(username)) { "Username may only contain letters and digits" }
@@ -105,8 +116,12 @@ class UserManager(private val usersFile: File) {
     /**
      * Changes the password for the given user after validating the current password.
      *
+     * @param username existing user whose password should change
+     * @param oldPassword current plaintext password used for validation
+     * @param newPassword replacement plaintext password
      * @throws IllegalArgumentException if the user does not exist, the current password is incorrect,
      *                                  or if the new password is empty
+     * @throws java.io.IOException when the credential file cannot be read or written
      */
     fun changePassword(username: String, oldPassword: String, newPassword: String) {
         require(isValidUsername(username)) { "Username may only contain letters and digits" }
@@ -141,7 +156,10 @@ class UserManager(private val usersFile: File) {
     /**
      * Validates the provided credentials against the stored users.
      *
+     * @param username username supplied for authentication
+     * @param password plaintext password supplied for authentication
      * @return true if the username exists and the password matches
+     * @throws java.io.IOException when the credential file cannot be read
      */
     fun validateUser(username: String, password: String): Boolean {
         if (!isValidUsername(username)) return false
@@ -161,6 +179,10 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Checks if a user with the given username exists.
+     *
+     * @param username username to find
+     * @return `true` when a valid credential entry exists for [username]
+     * @throws java.io.IOException when the credential file cannot be read
      */
     fun userExists(username: String): Boolean {
         if (!isValidUsername(username)) return false
@@ -170,6 +192,9 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Returns all distinct usernames in a stable alphabetical order.
+     *
+     * @return alphabetically sorted list of valid stored usernames
+     * @throws java.io.IOException when the credential file cannot be read
      */
     fun listUsers(): List<String> {
         return synchronized(lock) {
@@ -180,7 +205,9 @@ class UserManager(private val usersFile: File) {
     /**
      * Removes the given user's credential record from the users file.
      *
+     * @param username existing user to remove
      * @throws IllegalArgumentException if the username is blank or does not exist
+     * @throws java.io.IOException when the credential file cannot be read or written
      */
     fun deleteUser(username: String) {
         require(isValidUsername(username)) { "Username may only contain letters and digits" }
@@ -204,6 +231,8 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Generates a random URL-safe salt compatible with Werkzeug password hashes.
+     *
+     * @return newly generated salt bytes
      */
     private fun generateSalt(): ByteArray {
         // Generate random bytes and encode as base64url-safe characters (matching Werkzeug)
@@ -215,6 +244,10 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Derives a fixed-length scrypt key from a password and salt.
+     *
+     * @param password plaintext password to derive
+     * @param salt salt bytes used during derivation
+     * @return derived password-key bytes
      */
     private fun hashPassword(password: String, salt: ByteArray): ByteArray {
         return SCrypt.generate(
@@ -227,6 +260,11 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Reads all valid credential records while ignoring blank or malformed lines.
+     *
+     * @return parsed valid credential entries, or an empty list when the file does not exist
+     * @throws java.io.IOException when the credential file cannot be read
+     * @throws IllegalStateException when a stored hexadecimal key has an odd length
+     * @throws NumberFormatException when a stored hexadecimal key contains invalid digits
      */
     private fun readEntries(): List<UserEntry> {
         if (!usersFile.exists()) return emptyList()
@@ -241,6 +279,11 @@ class UserManager(private val usersFile: File) {
      *   admin:scrypt:32768:8:1$7tV3rzHzyFEf7IEC$82f747...
      *
      * Format: username:scrypt:N:r:p$salt$hex_key
+     *
+     * @param line credential-file line to parse
+     * @return parsed credential entry, or `null` when the line has an unsupported structure
+     * @throws IllegalStateException when the hexadecimal key has an odd length
+     * @throws NumberFormatException when the hexadecimal key contains invalid digits
      */
     private fun parseEntry(line: String): UserEntry? {
         // Split on first ':' to get username and the rest
@@ -274,7 +317,12 @@ class UserManager(private val usersFile: File) {
         return UserEntry(username, n, r, p, salt, keyBytes)
     }
 
-    /** Estimates information entropy from the frequency of Unicode symbols in a password. */
+    /**
+     * Estimates information entropy from the frequency of Unicode symbols in a password.
+     *
+     * @param password password whose estimated entropy should be calculated
+     * @return estimated entropy value, or `0.0` for an empty password
+     */
     fun computeEntropy(password: String): Double {
         val symbols = password.codePoints().toArray()
         if (symbols.isEmpty()) return 0.0
@@ -288,6 +336,13 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Represents one parsed scrypt credential record from the users file.
+     *
+     * @param username account name stored in the record
+     * @param n scrypt CPU and memory cost parameter
+     * @param r scrypt block-size parameter
+     * @param p scrypt parallelization parameter
+     * @param salt stored password salt
+     * @param keyBytes derived password-key bytes
      */
     private data class UserEntry(
         val username: String,
@@ -297,6 +352,12 @@ class UserManager(private val usersFile: File) {
         val salt: String,
         val keyBytes: ByteArray
     ) {
+        /**
+         * Compares credential entries by all scalar fields and key-byte contents.
+         *
+         * @param other object to compare with this entry
+         * @return `true` when both entries contain equal credential data
+         */
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -313,6 +374,11 @@ class UserManager(private val usersFile: File) {
             return true
         }
 
+        /**
+         * Produces a hash code matching the content-based equality implementation.
+         *
+         * @return content-based hash code for this credential entry
+         */
         override fun hashCode(): Int {
             var result = n
             result = 31 * result + r
@@ -326,6 +392,9 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Encodes this byte array as lowercase hexadecimal text.
+     *
+     * @receiver bytes to encode
+     * @return lowercase hexadecimal representation
      */
     private fun ByteArray.toHexString(): String {
         return joinToString("") { "%02x".format(it) }
@@ -333,6 +402,11 @@ class UserManager(private val usersFile: File) {
 
     /**
      * Decodes an even-length hexadecimal string into bytes.
+     *
+     * @receiver hexadecimal text to decode
+     * @return decoded byte array
+     * @throws IllegalStateException when the string length is odd
+     * @throws NumberFormatException when the string contains invalid hexadecimal digits
      */
     private fun String.hexToByteArray(): ByteArray {
         check(length % 2 == 0) { "Hex string must have even length" }

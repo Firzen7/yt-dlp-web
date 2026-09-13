@@ -8,6 +8,12 @@ import okhttp3.Response
 
 /**
  * Downloads a URL synchronously and returns its response body as text.
+ *
+ * @param urlString URL whose response body should be downloaded
+ * @param client HTTP client used for the request
+ * @return response body text, or `null` when the response has no body
+ * @throws IOException when the request, response reading, or connection fails
+ * @throws IllegalArgumentException when [urlString] is not a supported HTTP URL
  */
 @Throws(IOException::class)
 fun downloadFile(urlString: String, client: OkHttpClient): String? {

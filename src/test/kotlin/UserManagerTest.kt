@@ -15,6 +15,9 @@ class UserManagerTest {
 
     /**
      * Creates a user manager backed by a temporary credential file.
+     *
+     * @param initialContent optional credential-file content written before construction
+     * @return user manager backed by the test's temporary directory
      */
     private fun createManager(initialContent: String = ""): UserManager {
         val file = File(tempDir, "users.conf")

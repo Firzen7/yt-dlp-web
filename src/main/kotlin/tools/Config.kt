@@ -40,6 +40,9 @@ val USERS_FILE = try {
 
 /**
  * Selects the installed configuration or creates it from the bundled defaults.
+ *
+ * @return path of the configuration file that should be loaded
+ * @throws java.io.IOException when the default configuration cannot be copied
  */
 private fun availableConfigPath(): String {
     if (File(CONFIG_FILE).exists()) {

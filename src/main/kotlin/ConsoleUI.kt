@@ -7,6 +7,10 @@ import java.io.File
 
 /**
  * Keeps a password and its confirmation together so both character arrays can be erased after use.
+ *
+ * @param value password represented as text for credential operations
+ * @param passwordChars characters read from the first password prompt
+ * @param confirmationChars characters read from the confirmation prompt
  */
 private data class PasswordInput(
     val value: String,
@@ -23,6 +27,9 @@ private data class PasswordInput(
 
     /**
      * Compares password inputs by their text and by the contents of both backing arrays.
+     *
+     * @param other object to compare with this password input
+     * @return `true` when all values and arrays contain equal data
      */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -39,6 +46,8 @@ private data class PasswordInput(
 
     /**
      * Produces a hash code that matches the content-based equality check.
+     *
+     * @return content-based hash code for this password input
      */
     override fun hashCode(): Int {
         var result = value.hashCode()
@@ -52,6 +61,8 @@ private data class PasswordInput(
 
 /**
  * Reads a new user's password and prompts for the username when none was supplied.
+ *
+ * @param suppliedUsername username supplied on the command line, or `null` to prompt for one
  */
 fun addUser(suppliedUsername: String? = null) {
     val userManager = UserManager(File(USERS_FILE))
@@ -81,6 +92,10 @@ fun addUser(suppliedUsername: String? = null) {
 
 /**
  * Uses a supplied username or reads one interactively when it was omitted.
+ *
+ * @param console terminal used to prompt for a missing username
+ * @param suppliedUsername optional username supplied on the command line
+ * @return validated username, or `null` when validation fails
  */
 private fun resolveNewUsername(console: Console, suppliedUsername: String?): String? {
     if (suppliedUsername == null) {
@@ -95,6 +110,8 @@ private fun resolveNewUsername(console: Console, suppliedUsername: String?): Str
 
 /**
  * Reads a replacement password from the console and applies it to an existing account.
+ *
+ * @param username user whose password should be replaced
  */
 fun changePassword(username: String) {
     val userManager = UserManager(File(USERS_FILE))
@@ -144,6 +161,8 @@ fun listUsers() {
 
 /**
  * Deletes the requested user and reports the result to the terminal.
+ *
+ * @param username user to delete after confirmation
  */
 fun deleteUser(username: String) {
     val userManager = UserManager(File(USERS_FILE))
@@ -166,6 +185,10 @@ fun deleteUser(username: String) {
 
 /**
  * Asks for explicit confirmation before deleting the named user.
+ *
+ * @param console terminal used to read confirmation
+ * @param username user whose deletion should be confirmed
+ * @return `true` only when the user explicitly confirms deletion
  */
 private fun confirmUserDeletion(console: Console, username: String): Boolean {
     val response = console.readLine(
@@ -181,6 +204,9 @@ private fun confirmUserDeletion(console: Console, username: String): Boolean {
 
 /**
  * Reports whether a terminal response explicitly confirms user deletion.
+ *
+ * @param response terminal response to evaluate, or `null` when no response was read
+ * @return `true` for `y` or `yes`, ignoring case; otherwise `false`
  */
 internal fun isDeletionConfirmed(response: String?): Boolean {
     return response.equals("y", ignoreCase = true) ||
@@ -189,6 +215,8 @@ internal fun isDeletionConfirmed(response: String?): Boolean {
 
 /**
  * Returns the active system console or explains why an interactive command cannot continue.
+ *
+ * @return active system console, or `null` when no console is attached
  */
 private fun availableConsole(): Console? {
     val console = System.console()
@@ -202,6 +230,9 @@ private fun availableConsole(): Console? {
 
 /**
  * Prompts for a username and rejects empty or reserved names.
+ *
+ * @param console terminal used to read the username
+ * @return validated username, or `null` when validation fails
  */
 private fun readNewUsername(console: Console): String? {
     val username = console.readLine("Enter username: ")
@@ -211,6 +242,9 @@ private fun readNewUsername(console: Console): String? {
 
 /**
  * Rejects usernames that cannot be stored or used by the application.
+ *
+ * @param username candidate username, or `null` when input failed
+ * @return validated username, or `null` when it is unsupported
  */
 private fun validateNewUsername(username: String?): String? {
     if (username.isNullOrBlank()) {
@@ -233,6 +267,11 @@ private fun validateNewUsername(username: String?): String? {
 
 /**
  * Reads and validates a password together with its confirmation.
+ *
+ * @param console terminal used to read hidden password input
+ * @param prompt text displayed before the password field
+ * @param confirmationPrompt text displayed before the confirmation field
+ * @return validated password input, or `null` when reading or validation fails
  */
 private fun readConfirmedPassword(
     console: Console,
@@ -265,6 +304,8 @@ private fun readConfirmedPassword(
 
 /**
  * Overwrites every password array that was successfully read from the console.
+ *
+ * @param arrays password arrays to overwrite; `null` entries are ignored
  */
 private fun clearPasswordArrays(vararg arrays: CharArray?) {
     arrays.forEach { it?.fill(' ') }

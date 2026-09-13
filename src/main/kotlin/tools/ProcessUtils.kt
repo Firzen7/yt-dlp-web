@@ -12,6 +12,16 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Runs a process in the given directory while collecting output and reporting download progress.
+ *
+ * @param command executable and arguments to run
+ * @param outputDir working directory for the child process
+ * @param fullLog destination that receives standard output and error text
+ * @param progressCallback callback notified of parsed download progress
+ * @param processCallback callback notified when the process starts and when it is cleared
+ * @return child-process exit code
+ * @throws java.io.IOException when the process cannot be started or its streams cannot be closed
+ * @throws TimeoutCancellationException when the configured process timeout expires
+ * @throws CancellationException when the calling coroutine is cancelled
  */
 suspend fun runProcess(
     command: List<String>,
@@ -52,6 +62,12 @@ suspend fun runProcess(
 
 /**
  * Waits for a process to finish and terminates its process tree on timeout or cancellation.
+ *
+ * @receiver process to await
+ * @param timeoutMs maximum wait duration in milliseconds
+ * @return child-process exit code
+ * @throws TimeoutCancellationException when [timeoutMs] expires
+ * @throws CancellationException when the calling coroutine is cancelled
  */
 suspend fun Process.await(timeoutMs: Long): Int {
     return try {
@@ -73,6 +89,9 @@ suspend fun Process.await(timeoutMs: Long): Int {
 
 /**
  * Requests graceful termination of a process tree before forcibly stopping any survivors.
+ *
+ * @param process root process to terminate
+ * @throws InterruptedException when the termination grace-period sleep is interrupted
  */
 fun destroyProcessTree(process: Process) {
     val handle = process.toHandle()

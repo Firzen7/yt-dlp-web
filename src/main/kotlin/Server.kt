@@ -56,12 +56,19 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Stores the authenticated username in the browser session.
+ *
+ * @param username authenticated account name
  */
 @Serializable
 data class UserSession(val username: String)
 
 /**
  * Describes the current state and result of an asynchronous download.
+ *
+ * @param status current task state
+ * @param filePath completed output path, or `null` before completion
+ * @param error failure details, or `null` when no failure occurred
+ * @param progress download percentage, or `null` when unavailable
  */
 data class DownloadTask(
     val status: String,
@@ -72,6 +79,10 @@ data class DownloadTask(
 
 /**
  * Groups the fields submitted when an authenticated user changes their password.
+ *
+ * @param currentPassword current account password
+ * @param newPassword proposed replacement password
+ * @param confirmation repeated replacement password
  */
 private data class PasswordChangeRequest(
     val currentPassword: String,
@@ -81,6 +92,12 @@ private data class PasswordChangeRequest(
 
 /**
  * Holds a normalized download request and exposes its derived media settings.
+ *
+ * @param url sanitized media URL
+ * @param format requested video or audio mode
+ * @param audioConversion requested audio-conversion strategy
+ * @param resolution requested video resolution, or `null` for the best available
+ * @param customFilename requested output filename without unsafe characters
  */
 private data class DownloadRequest(
     val url: String,
@@ -95,6 +112,11 @@ private data class DownloadRequest(
 
 /**
  * Carries task identity, user, client address, and options through the download workflow.
+ *
+ * @param taskId unique task identifier
+ * @param username authenticated account that started the task
+ * @param clientAddress network address of the requesting client
+ * @param request normalized download request
  */
 private data class DownloadContext(
     val taskId: String,
@@ -105,6 +127,10 @@ private data class DownloadContext(
 
 /**
  * Combines the yt-dlp result with the directory where its output should appear.
+ *
+ * @param exitCode yt-dlp process exit code
+ * @param output collected process output
+ * @param taskDir directory containing task output
  */
 private data class TaskDownloadResult(
     val exitCode: Int,
@@ -114,6 +140,14 @@ private data class TaskDownloadResult(
 
 /**
  * Collects the file, format, and callback options needed to run yt-dlp.
+ *
+ * @param outputDir working and output directory for yt-dlp
+ * @param audioOnly whether only an audio stream should be downloaded
+ * @param forceMp3Conversion whether audio must be converted to MP3
+ * @param resolution exact requested video resolution, or `null` for the best available
+ * @param customFilename custom output filename, or `null` to use yt-dlp metadata
+ * @param progressCallback callback notified of download progress
+ * @param processCallback callback notified when the child process changes
  */
 private data class MediaDownloadOptions(
     val outputDir: File,
@@ -136,11 +170,16 @@ private const val MEDIA_FORMAT_TEMPLATE =
 
 /**
  * Returns the application version generated from the Gradle project version.
+ *
+ * @return application version string
  */
 private fun appVersion(): String = BuildConfig.VERSION
 
 /**
  * Returns the client address reconstructed from trusted proxy headers.
+ *
+ * @receiver request call whose origin should be resolved
+ * @return resolved client network address
  */
 private fun ApplicationCall.clientIpAddress(): String {
     return request.origin.remoteAddress
@@ -148,6 +187,11 @@ private fun ApplicationCall.clientIpAddress(): String {
 
 /**
  * Records a web action with the resolved network address of its client.
+ *
+ * @receiver request call associated with the action
+ * @param logLevel severity assigned to the persistent entry
+ * @param username authenticated username, or `null` when unavailable
+ * @param action action description to record
  */
 private fun ApplicationCall.logPersistentAction(
     logLevel: LogLevel,
@@ -177,6 +221,9 @@ fun startServer() {
 
 /**
  * Installs server features, registers routes, and records that startup completed.
+ *
+ * @receiver Ktor application to configure
+ * @param userManager credential manager shared by request handlers
  */
 private fun Application.configureServer(userManager: UserManager) {
     install(XForwardedHeaders) {
@@ -192,6 +239,8 @@ private fun Application.configureServer(userManager: UserManager) {
 
 /**
  * Configures the secure browser cookie used for authenticated sessions.
+ *
+ * @receiver Ktor application receiving session support
  */
 private fun Application.configureSessions() {
     install(Sessions) {
@@ -205,6 +254,8 @@ private fun Application.configureSessions() {
 
 /**
  * Converts uncaught request errors into consistent JSON error responses.
+ *
+ * @receiver Ktor application receiving error handling
  */
 private fun Application.configureErrorHandling() {
     install(StatusPages) {
@@ -216,6 +267,9 @@ private fun Application.configureErrorHandling() {
 
 /**
  * Sends details about an unexpected server error as a JSON response.
+ *
+ * @param call request call receiving the error response
+ * @param cause uncaught failure being reported
  */
 private suspend fun respondWithServerError(call: ApplicationCall, cause: Throwable) {
     val response = JSONObject()
@@ -232,6 +286,9 @@ private suspend fun respondWithServerError(call: ApplicationCall, cause: Throwab
 
 /**
  * Connects each public URL to its request handler and exposes static resources.
+ *
+ * @receiver Ktor application receiving routes
+ * @param userManager credential manager used by authentication routes
  */
 private fun Application.configureRoutes(userManager: UserManager) {
     routing {
@@ -258,6 +315,10 @@ private fun Application.configureRoutes(userManager: UserManager) {
 
 /**
  * Validates submitted credentials and completes or rejects the login attempt.
+ *
+ * @param userManager credential manager used for validation
+ * @param call login request call
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
     val body = JSONObject(call.receiveText())
@@ -273,6 +334,9 @@ private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
 
 /**
  * Creates a user session, confirms the login, and records the successful action.
+ *
+ * @param call authenticated login request call
+ * @param username account that successfully authenticated
  */
 private suspend fun completeLogin(call: RoutingCall, username: String) {
     call.sessions.set(UserSession(username))
@@ -283,6 +347,9 @@ private suspend fun completeLogin(call: RoutingCall, username: String) {
 
 /**
  * Returns an authentication error and records the failed login attempt.
+ *
+ * @param call rejected login request call
+ * @param username submitted username recorded in the audit log
  */
 private suspend fun rejectLogin(call: RoutingCall, username: String) {
     call.respondJson(
@@ -299,6 +366,8 @@ private suspend fun rejectLogin(call: RoutingCall, username: String) {
 
 /**
  * Clears the active session, confirms logout, and records the action.
+ *
+ * @param call logout request call
  */
 private suspend fun performLogout(call: RoutingCall) {
     val session = call.sessions.get<UserSession>()
@@ -311,6 +380,10 @@ private suspend fun performLogout(call: RoutingCall) {
 
 /**
  * Authorizes, parses, and validates a request before changing the user's password.
+ *
+ * @param userManager credential manager used to update the password
+ * @param call password-change request call
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun handleChangePassword(userManager: UserManager, call: RoutingCall) {
     val session = call.sessions.get<UserSession>()
@@ -334,6 +407,10 @@ private suspend fun handleChangePassword(userManager: UserManager, call: Routing
 
 /**
  * Parses password-change fields from the request body.
+ *
+ * @param call request containing password-change JSON
+ * @return parsed password-change fields
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun readPasswordChangeRequest(call: RoutingCall): PasswordChangeRequest {
     val body = JSONObject(call.receiveText())
@@ -347,6 +424,9 @@ private suspend fun readPasswordChangeRequest(call: RoutingCall): PasswordChange
 
 /**
  * Returns a user-facing validation message when a proposed password is invalid.
+ *
+ * @param request password-change values to validate
+ * @return validation message, or `null` when the request is valid
  */
 private fun validatePasswordChange(request: PasswordChangeRequest): String? {
     if (request.currentPassword.isEmpty()) {
@@ -366,6 +446,11 @@ private fun validatePasswordChange(request: PasswordChangeRequest): String? {
 
 /**
  * Applies a password change and maps expected or unexpected failures to responses.
+ *
+ * @param userManager credential manager used to persist the replacement password
+ * @param call request call receiving the outcome
+ * @param username account whose password should change
+ * @param request validated password-change values
  */
 private suspend fun changeUserPassword(
     userManager: UserManager,
@@ -385,6 +470,9 @@ private suspend fun changeUserPassword(
 
 /**
  * Ends the current session, confirms the password change, and records the action.
+ *
+ * @param call request call receiving the success response
+ * @param username account whose password changed
  */
 private suspend fun completePasswordChange(call: RoutingCall, username: String) {
     call.sessions.clear<UserSession>()
@@ -399,6 +487,10 @@ private suspend fun completePasswordChange(call: RoutingCall, username: String) 
 
 /**
  * Reports a rejected password change caused by invalid user input.
+ *
+ * @param call request call receiving the rejection response
+ * @param username account associated with the rejected change
+ * @param error validation failure to report
  */
 private suspend fun rejectPasswordChange(
     call: RoutingCall,
@@ -418,6 +510,10 @@ private suspend fun rejectPasswordChange(
 
 /**
  * Reports and records an unexpected failure while changing a password.
+ *
+ * @param call request call receiving the failure response
+ * @param username account associated with the failed change
+ * @param error unexpected failure to record
  */
 private suspend fun failPasswordChange(
     call: RoutingCall,
@@ -438,6 +534,9 @@ private suspend fun failPasswordChange(
 
 /**
  * Calculates password entropy and returns a generic error when calculation fails.
+ *
+ * @param userManager manager providing the entropy calculation
+ * @param call request containing the password and receiving the response
  */
 private suspend fun handlePasswordEntropy(userManager: UserManager, call: RoutingCall) {
     val username = call.sessions.get<UserSession>()?.username
@@ -462,6 +561,8 @@ private suspend fun handlePasswordEntropy(userManager: UserManager, call: Routin
 
 /**
  * Returns the logged-in username or an unauthorized response.
+ *
+ * @param call request call receiving account information or an error
  */
 private suspend fun provideUserInfo(call: RoutingCall) {
     val session = call.sessions.get<UserSession>()
@@ -475,6 +576,9 @@ private suspend fun provideUserInfo(call: RoutingCall) {
 
 /**
  * Validates a download request, starts its background task, and returns its identifier.
+ *
+ * @param call download request call
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun performDownload(call: RoutingCall) {
     val username = requireDownloadUser(call) ?: return
@@ -498,6 +602,9 @@ private suspend fun performDownload(call: RoutingCall) {
 
 /**
  * Returns the requesting username or responds when no user is logged in.
+ *
+ * @param call request call whose session should be inspected
+ * @return authenticated username, or `null` after sending an error response
  */
 private suspend fun requireDownloadUser(call: RoutingCall): String? {
     val username = call.sessions.get<UserSession>()?.username
@@ -522,6 +629,10 @@ private suspend fun requireDownloadUser(call: RoutingCall): String? {
 
 /**
  * Parses and normalizes all supported options from a download request.
+ *
+ * @param call request containing download JSON
+ * @return normalized download request
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun readDownloadRequest(call: RoutingCall): DownloadRequest {
     val body = JSONObject(call.receiveText())
@@ -542,6 +653,9 @@ private suspend fun readDownloadRequest(call: RoutingCall): DownloadRequest {
 
 /**
  * Reads a positive width and height from an optional resolution request object.
+ *
+ * @param body download request JSON containing an optional resolution object
+ * @return selected positive resolution, or `null` when absent or invalid
  */
 private fun readSelectedResolution(body: JSONObject): Resolution? {
     val resolution = body.optJSONObject("resolution") ?: return null
@@ -553,6 +667,9 @@ private fun readSelectedResolution(body: JSONObject): Resolution? {
 
 /**
  * Removes characters that cannot safely be used in a downloaded file name.
+ *
+ * @param filename requested filename to sanitize
+ * @return filename without unsupported characters
  */
 private fun sanitizeFilename(filename: String): String {
     return filename.replace(Regex("[<>:\"/\\\\|?*\\x00-\\x1F]"), "")
@@ -560,6 +677,11 @@ private fun sanitizeFilename(filename: String): String {
 
 /**
  * Creates and launches a tracked background task for a download request.
+ *
+ * @param username authenticated account starting the download
+ * @param clientAddress network address of the requesting client
+ * @param request normalized download request
+ * @return unique identifier assigned to the new task
  */
 private fun startDownloadTask(
     username: String,
@@ -581,6 +703,8 @@ private fun startDownloadTask(
 
 /**
  * Records the options and owner of a newly started download.
+ *
+ * @param context task context to record
  */
 private fun logDownloadStarted(context: DownloadContext) {
     val request = context.request
@@ -604,6 +728,8 @@ private fun logDownloadStarted(context: DownloadContext) {
 
 /**
  * Runs a download task and handles success, failure, cancellation, and cleanup.
+ *
+ * @param context task context to execute
  */
 private fun executeDownloadTask(context: DownloadContext) {
     try {
@@ -624,6 +750,9 @@ private fun executeDownloadTask(context: DownloadContext) {
 
 /**
  * Prepares the task directory and executes the requested media download.
+ *
+ * @param context task context containing request and destination details
+ * @return child-process result and task output directory
  */
 private fun runTaskDownload(context: DownloadContext): TaskDownloadResult {
     val request = context.request
@@ -647,6 +776,9 @@ private fun runTaskDownload(context: DownloadContext): TaskDownloadResult {
 
 /**
  * Updates progress only while a download remains active.
+ *
+ * @param taskId task whose progress should change
+ * @param progress latest percentage, or `null` when progress is unavailable
  */
 private fun updateTaskProgress(taskId: String, progress: Double?) {
     val task = tasks[taskId]
@@ -658,6 +790,10 @@ private fun updateTaskProgress(taskId: String, progress: Double?) {
 
 /**
  * Tracks the active process or terminates it immediately when its task was cancelled.
+ *
+ * @param taskId task associated with the process
+ * @param process active process, or `null` when process tracking should be cleared
+ * @throws InterruptedException when termination is interrupted for an already cancelled task
  */
 private fun trackTaskProcess(taskId: String, process: Process?) {
     when {
@@ -669,6 +805,9 @@ private fun trackTaskProcess(taskId: String, process: Process?) {
 
 /**
  * Dispatches a completed yt-dlp process to the success or failure handler.
+ *
+ * @param context completed task context
+ * @param result yt-dlp process result
  */
 private fun handleDownloadResult(context: DownloadContext, result: TaskDownloadResult) {
     if (result.exitCode == 0) {
@@ -680,6 +819,9 @@ private fun handleDownloadResult(context: DownloadContext, result: TaskDownloadR
 
 /**
  * Locates a completed file, stores its path, and records the successful download.
+ *
+ * @param context completed task context
+ * @param taskDir directory expected to contain downloaded output
  */
 private fun completeSuccessfulDownload(context: DownloadContext, taskDir: File) {
     val file = taskDir.listFiles()?.firstOrNull { it.isFile }
@@ -706,6 +848,9 @@ private fun completeSuccessfulDownload(context: DownloadContext, taskDir: File) 
 
 /**
  * Builds the persistent log message for a successfully completed download.
+ *
+ * @param request completed download request
+ * @return formatted persistent-log message
  */
 private fun completedDownloadLog(request: DownloadRequest): String {
     return "Completed ${request.format} download of ${request.url}" +
@@ -714,6 +859,9 @@ private fun completedDownloadLog(request: DownloadRequest): String {
 
 /**
  * Marks a task as failed when yt-dlp exits successfully but creates no file.
+ *
+ * @param context failed task context
+ * @param taskDir directory where output was expected
  */
 private fun handleMissingDownload(context: DownloadContext, taskDir: File) {
     Logger.e(
@@ -735,6 +883,9 @@ private fun handleMissingDownload(context: DownloadContext, taskDir: File) {
 
 /**
  * Records yt-dlp output and marks a task as failed when the process exits with an error.
+ *
+ * @param context failed task context
+ * @param result failed yt-dlp process result
  */
 private fun failYtDlpDownload(context: DownloadContext, result: TaskDownloadResult) {
     Logger.e(
@@ -757,6 +908,8 @@ private fun failYtDlpDownload(context: DownloadContext, result: TaskDownloadResu
 
 /**
  * Ensures a cancelled task has the correct state and records the cancellation.
+ *
+ * @param taskId cancelled task identifier
  */
 private fun handleDownloadCancellation(taskId: String) {
     if (tasks[taskId]?.status != "cancelled") {
@@ -771,6 +924,9 @@ private fun handleDownloadCancellation(taskId: String) {
 
 /**
  * Records an unexpected download exception and exposes its message through task status.
+ *
+ * @param context failed task context
+ * @param error unexpected download failure
  */
 private fun handleDownloadException(context: DownloadContext, error: Exception) {
     Logger.e(
@@ -793,6 +949,9 @@ private fun handleDownloadException(context: DownloadContext, error: Exception) 
 
 /**
  * Formats the request details shared by download error log messages.
+ *
+ * @param request request whose options should be formatted
+ * @return formatted request details
  */
 private fun downloadDetails(request: DownloadRequest): String {
     return "format: ${request.format}, audio conversion: ${request.audioConversion}, " +
@@ -802,6 +961,8 @@ private fun downloadDetails(request: DownloadRequest): String {
 
 /**
  * Authorizes a cancellation request and stops an active download task.
+ *
+ * @param call cancellation request call
  */
 private suspend fun cancelDownload(call: RoutingCall) {
     val username = call.sessions.get<UserSession>()?.username
@@ -829,6 +990,10 @@ private suspend fun cancelDownload(call: RoutingCall) {
 
 /**
  * Marks a task as cancelled, terminates its process, and cancels its coroutine.
+ *
+ * @param taskId task identifier to cancel
+ * @param task current task state to update
+ * @throws InterruptedException when process termination is interrupted
  */
 private fun stopDownloadTask(taskId: String, task: DownloadTask) {
     tasks[taskId] = task.copy(
@@ -844,6 +1009,10 @@ private fun stopDownloadTask(taskId: String, task: DownloadTask) {
 
 /**
  * Records who requested cancellation of a download task.
+ *
+ * @param call cancellation request used for persistent logging
+ * @param taskId cancelled task identifier
+ * @param username account that requested cancellation
  */
 private fun logDownloadCancelled(
     call: RoutingCall,
@@ -861,6 +1030,8 @@ private fun logDownloadCancelled(
 
 /**
  * Returns the current task state or the download URL for a completed task.
+ *
+ * @param call status request call
  */
 private suspend fun reportTaskStatus(call: RoutingCall) {
     call.sessions.get<UserSession>()
@@ -887,6 +1058,9 @@ private suspend fun reportTaskStatus(call: RoutingCall) {
 
 /**
  * Serializes a non-completed task state for the status endpoint.
+ *
+ * @param task task state to serialize
+ * @return JSON representation of task status, error, and progress
  */
 private fun taskStatusJson(task: DownloadTask): JSONObject {
     val response = JSONObject().put("status", task.status)
@@ -899,6 +1073,8 @@ private fun taskStatusJson(task: DownloadTask): JSONObject {
 
 /**
  * Authorizes a file request, verifies the result, and serves the downloaded file.
+ *
+ * @param call file-download request call
  */
 private suspend fun provideDownloadedFile(call: RoutingCall) {
     val username = call.sessions.get<UserSession>()?.username
@@ -920,6 +1096,10 @@ private suspend fun provideDownloadedFile(call: RoutingCall) {
 
 /**
  * Resolves a completed task's file or reports that it is not ready.
+ *
+ * @param call request call receiving an error when the file is unavailable
+ * @param taskId completed task identifier
+ * @return downloaded file, or `null` after sending an error response
  */
 private suspend fun resolveDownloadedFile(call: RoutingCall, taskId: String): File? {
     val task = tasks[taskId]
@@ -934,6 +1114,11 @@ private suspend fun resolveDownloadedFile(call: RoutingCall, taskId: String): Fi
 
 /**
  * Reports and records that a completed task's output file disappeared.
+ *
+ * @param call file request receiving the not-found response
+ * @param username account requesting the file
+ * @param taskId completed task identifier
+ * @param file expected output file
  */
 private suspend fun handleMissingServedFile(
     call: RoutingCall,
@@ -956,6 +1141,11 @@ private suspend fun handleMissingServedFile(
 
 /**
  * Adds download headers, records the transfer, and sends the requested file.
+ *
+ * @param call file request receiving the response
+ * @param username account requesting the file
+ * @param taskId completed task identifier
+ * @param file output file to serve
  */
 private suspend fun serveDownloadedFile(
     call: RoutingCall,
@@ -977,6 +1167,10 @@ private suspend fun serveDownloadedFile(
 
 /**
  * Builds a Content-Disposition value that supports both basic and UTF-8 file names.
+ *
+ * @param file file whose name should be encoded
+ * @return attachment Content-Disposition header value
+ * @throws java.io.UnsupportedEncodingException when UTF-8 encoding is unavailable
  */
 private fun contentDisposition(file: File): String {
     val encodedName = URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")
@@ -987,6 +1181,8 @@ private fun contentDisposition(file: File): String {
 
 /**
  * Returns the version currently embedded in the running application.
+ *
+ * @param call version request call
  */
 private suspend fun provideVersion(call: RoutingCall) {
     call.respondJson("""{"version": "${appVersion()}"}""")
@@ -994,6 +1190,8 @@ private suspend fun provideVersion(call: RoutingCall) {
 
 /**
  * Serves the application at the root URL or redirects unauthenticated visitors to login.
+ *
+ * @param call root-page request call
  */
 private suspend fun provideWebpage(call: RoutingCall) {
     if (call.sessions.get<UserSession>() == null) {
@@ -1005,6 +1203,8 @@ private suspend fun provideWebpage(call: RoutingCall) {
 
 /**
  * Serves the login page or returns authenticated visitors to the application root.
+ *
+ * @param call login-page request call
  */
 private suspend fun provideLoginPage(call: RoutingCall) {
     if (call.sessions.get<UserSession>() != null) {
@@ -1016,6 +1216,9 @@ private suspend fun provideLoginPage(call: RoutingCall) {
 
 /**
  * Permanently redirects an old HTML page URL to its canonical route.
+ *
+ * @param call legacy-page request call
+ * @param path canonical redirect destination
  */
 private suspend fun redirectToCanonicalPage(call: RoutingCall, path: String) {
     call.respondRedirect(call.pathWithQuery(path), permanent = true)
@@ -1023,6 +1226,10 @@ private suspend fun redirectToCanonicalPage(call: RoutingCall, path: String) {
 
 /**
  * Appends the current request query string to a redirect destination.
+ *
+ * @receiver request call containing the query string
+ * @param path redirect destination path
+ * @return destination with the current query string appended when present
  */
 private fun ApplicationCall.pathWithQuery(path: String): String {
     val queryString = request.queryString()
@@ -1032,6 +1239,10 @@ private fun ApplicationCall.pathWithQuery(path: String): String {
 
 /**
  * Loads an HTML resource from the application and returns a not-found response when absent.
+ *
+ * @param call page request receiving the resource or not-found response
+ * @param resourcePath classpath path of the HTML resource
+ * @throws java.io.IOException when an existing resource cannot be read
  */
 private suspend fun respondStaticHtml(call: RoutingCall, resourcePath: String) {
     val text = UserSession::class.java.classLoader.getResource(resourcePath)?.readText()
@@ -1045,6 +1256,10 @@ private suspend fun respondStaticHtml(call: RoutingCall, resourcePath: String) {
 
 /**
  * Authorizes a request and returns the video resolutions reported by yt-dlp.
+ *
+ * @param call resolution request call
+ * @throws org.json.JSONException when the request body is not valid JSON
+ * @throws CancellationException when the request coroutine is cancelled
  */
 private suspend fun handleResolutionRequest(call: RoutingCall) {
     val username = call.sessions.get<UserSession>()?.username
@@ -1074,6 +1289,9 @@ private suspend fun handleResolutionRequest(call: RoutingCall) {
 
 /**
  * Serializes available resolutions from largest to smallest for the Web UI.
+ *
+ * @param resolutions unique resolutions to serialize
+ * @return JSON response containing resolutions in descending order
  */
 private fun resolutionsJson(resolutions: Set<Resolution>): String {
     val values = JSONArray()
@@ -1095,6 +1313,11 @@ private fun resolutionsJson(resolutions: Set<Resolution>): String {
 
 /**
  * Reports a failed yt-dlp resolution query without exposing process output to the client.
+ *
+ * @param call request call receiving the failure response
+ * @param username account that requested resolutions
+ * @param url media URL whose resolution query failed
+ * @param error query failure to report and record
  */
 private suspend fun respondWithResolutionError(
     call: RoutingCall,
@@ -1120,6 +1343,9 @@ private suspend fun respondWithResolutionError(
 
 /**
  * Authorizes and validates a request before resolving a video's title.
+ *
+ * @param call title request call
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun handleVideoTitleRequest(call: RoutingCall) {
     val username = call.sessions.get<UserSession>()?.username
@@ -1141,6 +1367,9 @@ private suspend fun handleVideoTitleRequest(call: RoutingCall) {
 
 /**
  * Rejects and records a title request that did not contain a URL.
+ *
+ * @param call request call receiving the validation response
+ * @param username account that submitted the request
  */
 private suspend fun rejectBlankTitleRequest(call: RoutingCall, username: String) {
     call.logPersistentAction(
@@ -1154,6 +1383,10 @@ private suspend fun rejectBlankTitleRequest(call: RoutingCall, username: String)
 
 /**
  * Resolves a title, returns it to the client, and records the outcome.
+ *
+ * @param call title request receiving the result
+ * @param username account that requested the title
+ * @param url media URL whose title should be resolved
  */
 private suspend fun respondWithVideoTitle(
     call: RoutingCall,
@@ -1185,6 +1418,9 @@ private suspend fun respondWithVideoTitle(
 
 /**
  * Authorizes and validates a request before decoding its Base64 URL value.
+ *
+ * @param call decode request call
+ * @throws org.json.JSONException when the request body is not valid JSON
  */
 private suspend fun decodeBase64Url(call: RoutingCall) {
     val username = call.sessions.get<UserSession>()?.username
@@ -1205,6 +1441,9 @@ private suspend fun decodeBase64Url(call: RoutingCall) {
 
 /**
  * Rejects and records a decode request that did not contain Base64 text.
+ *
+ * @param call request call receiving the validation response
+ * @param username account that submitted the request
  */
 private suspend fun rejectBlankBase64(call: RoutingCall, username: String) {
     call.logPersistentAction(
@@ -1221,6 +1460,10 @@ private suspend fun rejectBlankBase64(call: RoutingCall, username: String) {
 
 /**
  * Decodes a Base64 URL and returns it, or reports malformed input.
+ *
+ * @param call decode request receiving the result
+ * @param username account that submitted the encoded value
+ * @param encodedUrl Base64 text to decode
  */
 private suspend fun decodeAndRespond(
     call: RoutingCall,
@@ -1252,6 +1495,10 @@ private suspend fun decodeAndRespond(
 
 /**
  * Records a successfully decoded URL in both application logs.
+ *
+ * @param call request call used for persistent logging
+ * @param username account that submitted the URL
+ * @param decodedUrl decoded URL to record
  */
 private fun logDecodedUrl(
     call: RoutingCall,
@@ -1269,6 +1516,9 @@ private fun logDecodedUrl(
 
 /**
  * Chooses the appropriate title provider and shields callers from lookup failures.
+ *
+ * @param url media URL whose title should be resolved
+ * @return resolved title, or `null` when lookup fails
  */
 private suspend fun resolveVideoTitle(url: String): String? {
     Logger.i("Getting title for url: $url")
@@ -1285,6 +1535,9 @@ private suspend fun resolveVideoTitle(url: String): String? {
 
 /**
  * Reports whether an HTTP URL belongs to a recognized YouTube domain family.
+ *
+ * @param url absolute URL to inspect
+ * @return `true` when the URL uses HTTP or HTTPS and a recognized YouTube host
  */
 internal fun isYoutubeUrl(url: String): Boolean {
     val uri = try {
@@ -1308,6 +1561,11 @@ internal fun isYoutubeUrl(url: String): Boolean {
 
 /**
  * Fetches a YouTube title through the public oEmbed endpoint.
+ *
+ * @param url recognized YouTube URL to query
+ * @return title returned by oEmbed, or `null` when the response has no title
+ * @throws java.io.IOException when the oEmbed request fails
+ * @throws org.json.JSONException when the response is not valid JSON
  */
 private fun fetchYoutubeTitle(url: String): String? {
     val normalizedUrl = normalizeYoutubeUrl(url)
@@ -1320,6 +1578,9 @@ private fun fetchYoutubeTitle(url: String): String? {
 
 /**
  * Converts a recognized YouTube URL to the canonical www.youtube.com host.
+ *
+ * @param url YouTube URL to normalize
+ * @return canonical URL, or the original value when it cannot be parsed
  */
 internal fun normalizeYoutubeUrl(url: String): String {
     val uri = try {
@@ -1339,6 +1600,9 @@ internal fun normalizeYoutubeUrl(url: String): String {
 
 /**
  * Converts a shortened YouTube path into the equivalent canonical watch URL.
+ *
+ * @param uri parsed shortened YouTube URI
+ * @return canonical watch URL, or a host-replaced URL for a non-shortened path
  */
 private fun normalizeShortYoutubeUrl(uri: URI): String {
     val videoId = uri.rawPath.orEmpty().trim('/').substringBefore('/')
@@ -1357,6 +1621,9 @@ private fun normalizeShortYoutubeUrl(uri: URI): String {
 
 /**
  * Rebuilds a YouTube URL with its canonical host while preserving its resource.
+ *
+ * @param uri parsed YouTube URI to rebuild
+ * @return HTTPS URL using the canonical YouTube host
  */
 private fun replaceYoutubeHost(uri: URI): String {
     val path = uri.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
@@ -1366,6 +1633,9 @@ private fun replaceYoutubeHost(uri: URI): String {
 
 /**
  * Returns this URI's encoded query with its separator when one is present.
+ *
+ * @receiver URI whose raw query should be formatted
+ * @return query prefixed with `?`, or an empty string when absent
  */
 private fun URI.rawQuerySuffix(): String {
     return rawQuery?.let { "?$it" }.orEmpty()
@@ -1373,6 +1643,9 @@ private fun URI.rawQuerySuffix(): String {
 
 /**
  * Returns this URI's encoded fragment with its separator when one is present.
+ *
+ * @receiver URI whose raw fragment should be formatted
+ * @return fragment prefixed with `#`, or an empty string when absent
  */
 private fun URI.rawFragmentSuffix(): String {
     return rawFragment?.let { "#$it" }.orEmpty()
@@ -1380,6 +1653,12 @@ private fun URI.rawFragmentSuffix(): String {
 
 /**
  * Uses yt-dlp to read a title for sites that do not use the YouTube oEmbed endpoint.
+ *
+ * @param url media URL passed to yt-dlp
+ * @return trimmed title produced by yt-dlp
+ * @throws java.io.IOException when yt-dlp cannot be started or its output cannot be read
+ * @throws kotlinx.coroutines.TimeoutCancellationException when the process timeout expires
+ * @throws CancellationException when the calling coroutine is cancelled
  */
 private suspend fun fetchGenericTitle(url: String): String = coroutineScope {
     val process = ProcessBuilder("yt-dlp", "--get-title", url).start()
@@ -1395,6 +1674,13 @@ private suspend fun fetchGenericTitle(url: String): String = coroutineScope {
 
 /**
  * Queries yt-dlp and returns the distinct video resolutions available for a URL.
+ *
+ * @param videoUrl media URL to inspect
+ * @return unique positive video resolutions reported by yt-dlp
+ * @throws IllegalArgumentException when [videoUrl] is invalid or unsupported
+ * @throws IllegalStateException when yt-dlp exits unsuccessfully
+ * @throws java.io.IOException when yt-dlp cannot be executed or read
+ * @throws CancellationException when the calling coroutine is cancelled
  */
 suspend fun getAvailableVideoResolutions(videoUrl: String): Set<Resolution> {
     val validationError = mediaUrlError(videoUrl)
@@ -1411,6 +1697,9 @@ suspend fun getAvailableVideoResolutions(videoUrl: String): Set<Resolution> {
 
 /**
  * Builds the metadata-only yt-dlp command used to inspect available streams.
+ *
+ * @param videoUrl validated media URL to inspect
+ * @return complete yt-dlp command and arguments
  */
 private fun buildMediaFormatCommand(videoUrl: String): List<String> {
     return listOf(
@@ -1426,6 +1715,13 @@ private fun buildMediaFormatCommand(videoUrl: String): List<String> {
 
 /**
  * Executes a format query while collecting its standard and error output safely.
+ *
+ * @param command yt-dlp command and arguments to execute
+ * @return standard output produced by a successful query
+ * @throws java.io.IOException when yt-dlp cannot be executed or read
+ * @throws IllegalStateException when yt-dlp exits unsuccessfully
+ * @throws kotlinx.coroutines.TimeoutCancellationException when the process timeout expires
+ * @throws CancellationException when the calling coroutine is cancelled
  */
 private suspend fun runMediaFormatCommand(command: List<String>): String = coroutineScope {
     Logger.i("Executing yt-dlp format query for ${command.last()}")
@@ -1450,6 +1746,10 @@ private suspend fun runMediaFormatCommand(command: List<String>): String = corou
 
 /**
  * Parses yt-dlp format JSON and keeps unique dimensions from video streams.
+ *
+ * @param output serialized format array produced by yt-dlp
+ * @return unique positive dimensions belonging to video streams
+ * @throws kotlinx.serialization.SerializationException when [output] is invalid
  */
 internal fun parseVideoResolutions(output: String): Set<Resolution> {
     val formats = Json.decodeFromString<List<MediaFormat>>(output)
@@ -1462,6 +1762,9 @@ internal fun parseVideoResolutions(output: String): Set<Resolution> {
 
 /**
  * Reports whether a media format contains a real video stream.
+ *
+ * @param format media format to inspect
+ * @return `true` when the format declares a usable video codec
  */
 private fun isVideoFormat(format: MediaFormat): Boolean {
     return !format.vcodec.isNullOrBlank() &&
@@ -1470,6 +1773,9 @@ private fun isVideoFormat(format: MediaFormat): Boolean {
 
 /**
  * Converts valid positive stream dimensions into a resolution.
+ *
+ * @param format media format whose dimensions should be read
+ * @return positive resolution, or `null` when either dimension is unavailable or invalid
  */
 private fun mediaFormatResolution(format: MediaFormat): Resolution? {
     val width = format.width?.takeIf { it > 0 } ?: return null
@@ -1480,6 +1786,16 @@ private fun mediaFormatResolution(format: MediaFormat): Resolution? {
 
 /**
  * Validates raw download inputs and converts them into options for yt-dlp.
+ *
+ * @param rawUrl media URL supplied by the user
+ * @param outputDir output-directory path
+ * @param audioOnly whether to download audio without video
+ * @param forceMp3Conversion whether downloaded audio must be converted to MP3
+ * @param resolution exact video resolution, or `null` for the best available
+ * @param customFilename custom output filename, or `null` to use metadata
+ * @param progressCallback callback notified of parsed progress
+ * @param processCallback callback notified when the child process changes
+ * @return process exit code paired with collected output or validation details
  */
 private fun downloadMedia(
     rawUrl: String,
@@ -1516,6 +1832,10 @@ private fun downloadMedia(
 
 /**
  * Returns the first URL or output-directory error found for a download request.
+ *
+ * @param rawUrl media URL to validate
+ * @param directory output directory to validate or create
+ * @return validation error, or `null` when both values are usable
  */
 private fun downloadRequestError(rawUrl: String, directory: File): String? {
     return mediaUrlError(rawUrl)
@@ -1528,6 +1848,9 @@ private fun downloadRequestError(rawUrl: String, directory: File): String? {
 
 /**
  * Returns a validation error for malformed or unsupported media URLs.
+ *
+ * @param rawUrl media URL to validate
+ * @return validation error, or `null` when the URL is supported
  */
 private fun mediaUrlError(rawUrl: String): String? {
     if (!rawUrl.isValidUrl()) return "Error! Invalid url: $rawUrl"
@@ -1538,6 +1861,10 @@ private fun mediaUrlError(rawUrl: String): String? {
 
 /**
  * Ensures a directory exists and is readable and writable.
+ *
+ * @param directory directory to inspect or create
+ * @return `true` when the directory exists and is readable and writable
+ * @throws SecurityException when filesystem access is denied
  */
 private fun isUsableDirectory(directory: File): Boolean {
     val exists = directory.isDirectory || directory.mkdirs()
@@ -1547,6 +1874,12 @@ private fun isUsableDirectory(directory: File): Boolean {
 
 /**
  * Runs the suspendable yt-dlp workflow from the synchronous download task.
+ *
+ * @param url validated media URL
+ * @param options yt-dlp output and format options
+ * @return child-process exit code paired with collected output
+ * @throws java.io.IOException when yt-dlp cannot be executed or read
+ * @throws CancellationException when the workflow is cancelled
  */
 private fun downloadMedia(url: Url, options: MediaDownloadOptions): Pair<Int, String> {
     Logger.i("downloadMedia(url=$url, outputDir=${options.outputDir.absolutePath})")
@@ -1560,6 +1893,15 @@ private fun downloadMedia(url: Url, options: MediaDownloadOptions): Pair<Int, St
 
 /**
  * Executes yt-dlp and retries failed fast audio downloads with MP3 conversion when allowed.
+ *
+ * @param url media URL passed to yt-dlp
+ * @param options yt-dlp output and format options
+ * @param fullLog destination collecting output across attempts
+ * @param slowAudioConversion whether this attempt uses MP3 conversion fallback
+ * @return final process exit code paired with collected output
+ * @throws java.io.IOException when yt-dlp cannot be executed or read
+ * @throws kotlinx.coroutines.TimeoutCancellationException when the process timeout expires
+ * @throws CancellationException when the calling coroutine is cancelled
  */
 private suspend fun runYtDlp(
     url: Url,
@@ -1588,6 +1930,11 @@ private suspend fun runYtDlp(
 
 /**
  * Assembles the complete yt-dlp command for the selected output options.
+ *
+ * @param url media URL appended to the command
+ * @param options yt-dlp output and format options
+ * @param slowAudioConversion whether to use the MP3 conversion fallback
+ * @return complete yt-dlp command and arguments
  */
 private fun buildYtDlpCommand(
     url: Url,
@@ -1606,6 +1953,9 @@ private fun buildYtDlpCommand(
 
 /**
  * Creates the shared yt-dlp arguments used by every download.
+ *
+ * @param outputDir directory where yt-dlp should write output
+ * @return mutable command containing shared yt-dlp arguments
  */
 private fun baseYtDlpCommand(outputDir: File): MutableList<String> {
     return mutableListOf(
@@ -1620,6 +1970,9 @@ private fun baseYtDlpCommand(outputDir: File): MutableList<String> {
 
 /**
  * Adds a custom output template when the user supplied a file name.
+ *
+ * @param command mutable yt-dlp command to update
+ * @param customFilename custom filename, or `null` to retain yt-dlp naming
  */
 private fun addCustomFilename(command: MutableList<String>, customFilename: String?) {
     if (customFilename != null) {
@@ -1630,6 +1983,9 @@ private fun addCustomFilename(command: MutableList<String>, customFilename: Stri
 
 /**
  * Restricts video downloads to the dimensions selected by the user.
+ *
+ * @param command mutable yt-dlp command to update
+ * @param options media options containing the optional resolution
  */
 private fun addVideoArguments(
     command: MutableList<String>,
@@ -1644,6 +2000,9 @@ private fun addVideoArguments(
 
 /**
  * Builds an exact-resolution selector with separate and combined stream fallbacks.
+ *
+ * @param resolution exact dimensions required from yt-dlp
+ * @return yt-dlp format-selector expression
  */
 internal fun videoFormatSelector(resolution: Resolution): String {
     val dimensions = "[width=${resolution.width}][height=${resolution.height}]"
@@ -1653,6 +2012,10 @@ internal fun videoFormatSelector(resolution: Resolution): String {
 
 /**
  * Selects fast M4A extraction or explicit MP3 conversion for audio downloads.
+ *
+ * @param command mutable yt-dlp command to update
+ * @param options media options describing the requested audio behavior
+ * @param slowAudioConversion whether this attempt uses MP3 fallback conversion
  */
 private fun addAudioArguments(
     command: MutableList<String>,
@@ -1670,6 +2033,11 @@ private fun addAudioArguments(
 
 /**
  * Decides whether a failed fast audio download should be retried as MP3.
+ *
+ * @param options media options describing the requested audio behavior
+ * @param exitCode exit code from the fast audio attempt
+ * @param slowAudioConversion whether the failed attempt already used MP3 conversion
+ * @return `true` when one MP3 fallback attempt should be made
  */
 private fun shouldRetryAudio(
     options: MediaDownloadOptions,
