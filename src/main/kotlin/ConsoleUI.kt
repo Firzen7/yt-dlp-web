@@ -1,5 +1,6 @@
 package net.firzen.web
 
+import net.firzen.web.tools.ACTIVE_CONFIG_FILE
 import net.firzen.web.tools.UNKNOWN_USER
 import net.firzen.web.tools.USERS_FILE
 import java.io.Console
@@ -156,6 +157,37 @@ fun listUsers() {
         users.forEach { println("  $it") }
     } catch (e: Exception) {
         println("Failed to list users: ${e.message}")
+    }
+}
+
+/**
+ * Prints the active configuration file location followed by its contents.
+ */
+fun printConfiguration() {
+    val configFile = File(ACTIVE_CONFIG_FILE)
+
+    try {
+        val output = configurationText(configFile)
+
+        print(output)
+        if (!output.endsWith('\n')) println()
+    } catch (e: Exception) {
+        println("Failed to read configuration: ${e.message}")
+    }
+}
+
+/**
+ * Formats a configuration file's absolute location and unmodified contents.
+ *
+ * @param configFile configuration file to describe
+ * @return printable configuration location and contents
+ * @throws java.io.IOException when the configuration file cannot be read
+ */
+internal fun configurationText(configFile: File): String {
+    return buildString {
+        appendLine("Configuration file: ${configFile.absolutePath}")
+        appendLine()
+        append(configFile.readText())
     }
 }
 

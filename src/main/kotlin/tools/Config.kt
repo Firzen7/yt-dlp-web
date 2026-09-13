@@ -12,9 +12,12 @@ import java.io.File
 
 private const val DEFAULT_LOGIN_SESSION_LENGTH = 30 * 24 * 60 * 60L
 
+// Path of the configuration file selected for this application process.
+val ACTIVE_CONFIG_FILE = availableConfigPath()
+
 private val conf = systemProperties() overriding
         EnvironmentVariables() overriding
-        ConfigurationProperties.fromFile(File(availableConfigPath()))
+        ConfigurationProperties.fromFile(File(ACTIVE_CONFIG_FILE))
 
 // Primary configuration path used by packaged installations.
 const val CONFIG_FILE = "/opt/yt-dlp-web/config.conf"

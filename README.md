@@ -146,6 +146,14 @@ java -jar yt-dlp-web.jar deluser <username>
 
 The user must already exist. The command displays the username and requires interactive confirmation before deleting it.
 
+### Show the configuration
+
+```bash
+java -jar yt-dlp-web.jar config
+```
+
+The command prints the active configuration file location followed by its contents.
+
 ### Show CLI help
 
 ```bash
@@ -156,7 +164,7 @@ Passwords are stored as salted scrypt hashes in a Werkzeug-compatible text forma
 
 ## Web UI
 
-Users sign in with an account created through the CLI. Authentication uses an HTTP-only `SESSION` cookie with a 30-day lifetime.
+Users sign in with an account created through the CLI. Authentication uses an HTTP-only `SESSION` cookie whose lifetime is configured by `auth.login_session_length`.
 
 Video mode downloads the best available format by default. Users can explicitly request available resolutions; yt-dlp is queried only when the selection button is pressed. Playlists and live streams are intentionally excluded.
 
