@@ -1,5 +1,6 @@
 package net.firzen.web
 
+import net.firzen.web.network.startServer
 import java.io.File
 
 private const val DEVELOPMENT_JAR_NAME = "yt-dlp-web.jar"

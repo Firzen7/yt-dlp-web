@@ -1,6 +1,8 @@
 package net.firzen.web
 
 import kotlinx.serialization.json.Json
+import net.firzen.web.network.parseVideoResolutions
+import net.firzen.web.network.videoFormatSelector
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

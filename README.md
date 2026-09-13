@@ -262,7 +262,8 @@ The maintenance script uses a fixed directory rather than `fs.download_directory
 
 Main source locations:
 
-- `src/main/kotlin/` contains the CLI, server, download process management, authentication, and logging.
+- `src/main/kotlin/` contains the CLI, configuration, user management, and logging.
+- `src/main/kotlin/network/` contains the web server, routes, download tasks, and yt-dlp integration.
 - `src/main/resources/static/` contains the Web UI and JSON localization catalogs.
 - `src/main/resources/defaults.conf` contains the default configuration template.
 - `src/test/kotlin/` contains the Kotlin test suite.

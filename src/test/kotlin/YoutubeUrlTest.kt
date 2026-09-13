@@ -1,5 +1,7 @@
 package net.firzen.web
 
+import net.firzen.web.network.isYoutubeUrl
+import net.firzen.web.network.normalizeYoutubeUrl
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
