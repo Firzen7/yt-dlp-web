@@ -10,6 +10,8 @@ import com.natpryce.konfig.overriding
 import com.natpryce.konfig.stringType
 import java.io.File
 
+private const val DEFAULT_LOGIN_SESSION_LENGTH = 30 * 24 * 60 * 60L
+
 private val conf = systemProperties() overriding
         EnvironmentVariables() overriding
         ConfigurationProperties.fromFile(File(availableConfigPath()))
@@ -36,6 +38,13 @@ val USERS_FILE = try {
     conf[Key("auth.users_file", stringType)]
 } catch (_: Exception) {
     "./users.conf"
+}
+
+// Lifetime of an authenticated browser session in seconds.
+val LOGIN_SESSION_LENGTH = try {
+    conf[Key("auth.login_session_length", longType)]
+} catch (_: Exception) {
+    DEFAULT_LOGIN_SESSION_LENGTH
 }
 
 /**

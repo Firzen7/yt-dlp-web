@@ -83,6 +83,7 @@ fs.js_runtime_type=node
 fs.js_runtime_path=/usr/bin/node
 
 auth.users_file=./users.conf
+auth.login_session_length=2592000
 
 process.timeout=1200
 ```
@@ -95,6 +96,7 @@ process.timeout=1200
 | `fs.js_runtime_type` | `FS_JS_RUNTIME_TYPE` | `node` | Runtime name passed to yt-dlp through `--js-runtimes`. |
 | `fs.js_runtime_path` | `FS_JS_RUNTIME_PATH` | `/usr/bin/node` | Executable path paired with `fs.js_runtime_type`. |
 | `auth.users_file` | `AUTH_USERS_FILE` | `./users.conf` | Credential file used by the CLI and Web UI. Relative paths are resolved from the process working directory. |
+| `auth.login_session_length` | `AUTH_LOGIN_SESSION_LENGTH` | `2592000` | Lifetime of an authenticated browser session in seconds. The default is 30 days. |
 | `process.timeout` | `PROCESS_TIMEOUT` | `1200` | Maximum child-process runtime in seconds. It is also used for the ffmpeg network timeout. |
 
 Example override:
