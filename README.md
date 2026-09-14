@@ -19,7 +19,7 @@ yt-dlp-web is a self-hosted web frontend for [yt-dlp](https://github.com/yt-dlp/
 - `yt-dlp` available on `PATH`.
 - `ffmpeg` available on `PATH`.
 - A JavaScript runtime supported by yt-dlp. The default configuration uses Node.js at `/usr/bin/node`.
-- Write access to the configured download, log, and user-file locations.
+- Write access to the configured download, log, session, and user-file locations.
 
 ## Building
 
@@ -79,6 +79,7 @@ server.port=8080
 
 fs.download_directory=/tmp/yt-dlp-web
 fs.log_directory=/opt/yt-dlp-web/logs
+fs.session_directory=./sessions
 fs.js_runtime_type=node
 fs.js_runtime_path=/usr/bin/node
 
@@ -93,6 +94,7 @@ process.timeout=1200
 | `server.port` | `SERVER_PORT` | `8080` | TCP port used by the embedded Netty HTTP server. |
 | `fs.download_directory` | `FS_DOWNLOAD_DIRECTORY` | `/tmp/yt-dlp-web` | Parent directory for downloads. Each task receives its own UUID-named subdirectory. |
 | `fs.log_directory` | `FS_LOG_DIRECTORY` | `/opt/yt-dlp-web/logs` | Directory for persistent per-user action logs. It must already exist and be writable. |
+| `fs.session_directory` | `FS_SESSION_DIRECTORY` | `./sessions` | Directory for server-side session files. Relative paths are resolved from the process working directory. |
 | `fs.js_runtime_type` | `FS_JS_RUNTIME_TYPE` | `node` | Runtime name passed to yt-dlp through `--js-runtimes`. |
 | `fs.js_runtime_path` | `FS_JS_RUNTIME_PATH` | `/usr/bin/node` | Executable path paired with `fs.js_runtime_type`. |
 | `auth.users_file` | `AUTH_USERS_FILE` | `./users.conf` | Credential file used by the CLI and Web UI. Relative paths are resolved from the process working directory. |
@@ -144,7 +146,7 @@ java -jar yt-dlp-web.jar listusers
 java -jar yt-dlp-web.jar deluser <username>
 ```
 
-The user must already exist. The command displays the username and requires interactive confirmation before deleting it. It then asks whether that user's persistent log file should also be removed.
+The user must already exist. The command displays the username and requires interactive confirmation before deleting it. All of the user's sessions are invalidated automatically, and the command asks whether that user's persistent log file should also be removed.
 
 ### Show the configuration
 
@@ -164,7 +166,7 @@ Passwords are stored as salted scrypt hashes in a Werkzeug-compatible text forma
 
 ## Web UI
 
-Users sign in with an account created through the CLI. Authentication uses an HTTP-only `SESSION` cookie whose lifetime is configured by `auth.login_session_length`.
+Users sign in with an account created through the CLI. The HTTP-only `SESSION` cookie contains only an opaque random identifier. Server-side sessions are stored in `<fs.session_directory>/<username>.sessions`, with one tab-separated identifier and expiration timestamp per line. Their lifetime is configured by `auth.login_session_length`.
 
 Video mode downloads the best available format by default. Users can explicitly request available resolutions; yt-dlp is queried only when the selection button is pressed. Playlists and live streams are intentionally excluded.
 

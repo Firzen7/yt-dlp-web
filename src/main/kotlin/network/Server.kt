@@ -19,6 +19,7 @@ import net.firzen.web.UserManager
 import net.firzen.web.logging.Logger
 import net.firzen.web.tools.LOGIN_SESSION_LENGTH
 import net.firzen.web.tools.SERVER_PORT
+import net.firzen.web.tools.SESSION_DIRECTORY
 import net.firzen.web.tools.USERS_FILE
 import org.json.JSONObject
 import java.io.File
@@ -62,13 +63,19 @@ private fun Application.configureServer(userManager: UserManager) {
 }
 
 /**
- * Configures the secure browser cookie used for authenticated sessions.
+ * Configures the browser cookie and file storage used for authenticated sessions.
  *
  * @receiver Ktor application receiving session support
  */
 private fun Application.configureSessions() {
+    val storage = UserFileSessionStorage(
+        File(SESSION_DIRECTORY),
+        LOGIN_SESSION_LENGTH
+    )
+
     install(Sessions) {
-        cookie<UserSession>("SESSION") {
+        cookie<UserSession>("SESSION", storage) {
+            serializer = UserSessionSerializer
             cookie.path = "/"
             cookie.httpOnly = true
             cookie.maxAgeInSeconds = LOGIN_SESSION_LENGTH

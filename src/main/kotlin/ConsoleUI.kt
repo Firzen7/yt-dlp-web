@@ -2,6 +2,7 @@ package net.firzen.web
 
 import net.firzen.web.tools.ACTIVE_CONFIG_FILE
 import net.firzen.web.tools.LOG_DIRECTORY
+import net.firzen.web.tools.SESSION_DIRECTORY
 import net.firzen.web.tools.UNKNOWN_USER
 import net.firzen.web.tools.USERS_FILE
 import java.io.Console
@@ -211,13 +212,32 @@ fun deleteUser(username: String) {
 
     try {
         userManager.deleteUser(username)
+
+        deleteUserSessions(username)
+        if (deleteLogs) deleteUserLog(username)
+
         println("User $username deleted successfully.")
     } catch (e: Exception) {
         println("Failed to delete user: ${e.message}")
         return
     }
+}
 
-    if (deleteLogs) deleteUserLog(username)
+/**
+ * Invalidates every server-side session belonging to a deleted user.
+ *
+ * @param username deleted user whose sessions should be removed
+ */
+private fun deleteUserSessions(username: String) {
+    val sessionFile = File(SESSION_DIRECTORY, "$username.sessions")
+
+    try {
+        if (sessionFile.exists() && !sessionFile.delete()) {
+            println("Warning: Failed to invalidate sessions for user $username.")
+        }
+    } catch (e: Exception) {
+        println("Warning: Failed to invalidate sessions for user $username: ${e.message}")
+    }
 }
 
 /**

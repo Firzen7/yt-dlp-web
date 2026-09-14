@@ -29,6 +29,12 @@ val SERVER_PORT = conf[Key("server.port", intType)]
 val DOWNLOAD_DIRECTORY = conf[Key("fs.download_directory", stringType)]
 // Directory where per-user action logs are stored.
 val LOG_DIRECTORY = conf[Key("fs.log_directory", stringType)]
+// Directory where server-side login sessions are stored.
+val SESSION_DIRECTORY = try {
+    conf[Key("fs.session_directory", stringType)]
+} catch (_: Exception) {
+    "./sessions"
+}
 // JavaScript runtime identifier passed to yt-dlp.
 val JS_RUNTIME_TYPE = conf[Key("fs.js_runtime_type", stringType)]
 // Filesystem path to the JavaScript runtime executable.
