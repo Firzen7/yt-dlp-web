@@ -1,12 +1,16 @@
 package net.firzen.web
 
+import net.firzen.web.network.ActiveSession
+import net.firzen.web.network.UserFileSessionStorage
 import net.firzen.web.tools.ACTIVE_CONFIG_FILE
+import net.firzen.web.tools.LOGIN_SESSION_LENGTH
 import net.firzen.web.tools.LOG_DIRECTORY
 import net.firzen.web.tools.SESSION_DIRECTORY
 import net.firzen.web.tools.UNKNOWN_USER
 import net.firzen.web.tools.USERS_FILE
 import java.io.Console
 import java.io.File
+import java.time.Instant
 
 /**
  * Keeps a password and its confirmation together so both character arrays can be erased after use.
@@ -160,6 +164,68 @@ fun listUsers() {
     } catch (e: Exception) {
         println("Failed to list users: ${e.message}")
     }
+}
+
+/**
+ * Prints active server-side sessions for every user or one selected user.
+ *
+ * @param username optional username used to filter the session list
+ */
+fun listSessions(username: String? = null) {
+    if (username != null && !UserManager.isValidUsername(username)) {
+        println("Username may only contain letters and digits")
+        return
+    }
+
+    try {
+        val storage = UserFileSessionStorage(File(SESSION_DIRECTORY), LOGIN_SESSION_LENGTH)
+        printSessions(storage.activeSessions(username), username)
+    } catch (e: Exception) {
+        println("Failed to list sessions: ${e.message}")
+    }
+}
+
+/**
+ * Prints session summaries or an appropriate empty-list message.
+ *
+ * @param sessions active sessions to print
+ * @param username optional username used for the list
+ */
+private fun printSessions(sessions: List<ActiveSession>, username: String?) {
+    if (sessions.isEmpty()) {
+        println(username?.let { "No active sessions found for user '$it'." }
+            ?: "No active sessions found.")
+        return
+    }
+
+    println("Active sessions (${sessions.size}):")
+    sessions.forEach(::printSession)
+}
+
+/**
+ * Prints one active session without exposing its complete bearer identifier.
+ *
+ * @param session active session to print
+ */
+private fun printSession(session: ActiveSession) {
+    println("  User: ${session.username}")
+    println("  IP address: ${session.clientAddress}")
+    println("  Created at (UTC): ${Instant.ofEpochSecond(session.createdAt)}")
+    println("  Expires at (UTC): ${Instant.ofEpochSecond(session.expiresAt)}")
+    println("  Session ID: ${maskSessionId(session.id)}")
+    println()
+}
+
+/**
+ * Masks the middle of a session identifier so terminal output is not reusable for login.
+ *
+ * @param id opaque session identifier to mask
+ * @return masked identifier or a fully masked short value
+ */
+internal fun maskSessionId(id: String): String {
+    if (id.length <= 12) return "*".repeat(id.length)
+
+    return "${id.take(8)}...${id.takeLast(4)}"
 }
 
 /**

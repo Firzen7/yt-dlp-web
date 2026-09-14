@@ -38,6 +38,7 @@ class ConsoleUITest {
         assertTrue(usage.contains("\n  passwd <username> "))
         assertTrue(usage.contains("\n  listusers "))
         assertTrue(usage.contains("\n  deluser <username> "))
+        assertTrue(usage.contains("\n  sessions [username] "))
         assertTrue(usage.contains("\n  config "))
         assertTrue(usage.contains("\n  --help, -h, help "))
     }
@@ -58,5 +59,14 @@ class ConsoleUITest {
             "Configuration file: ${configFile.absolutePath}\n\nserver.port=1234\n",
             configurationText(configFile)
         )
+    }
+
+    /**
+     * Verifies that displayed session identifiers cannot be reused as credentials.
+     */
+    @Test
+    fun `session identifiers are masked for display`() {
+        assertEquals("12345678...cdef", maskSessionId("1234567890abcdef"))
+        assertEquals("********", maskSessionId("short_id"))
     }
 }

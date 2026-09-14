@@ -28,24 +28,30 @@ class UserFileSessionStorageTest {
 
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
         assertEquals(UserSession("alice", "192.0.2.10"), readSession(storage, "first_id"))
-        assertTrue(sessionFile.readLines().contains("first_id\t1100\t192.0.2.10"))
-        assertTrue(sessionFile.readLines().contains("second_id\t1100\t2001:db8::10"))
+        assertTrue(sessionFile.readLines().contains("first_id\t1000\t192.0.2.10"))
+        assertTrue(sessionFile.readLines().contains("second_id\t1000\t2001:db8::10"))
         assertTrue(tempDirectory.resolve("bob.sessions").toFile().exists())
+
+        assertEquals(listOf("alice", "alice", "bob"), storage.activeSessions().map { it.username })
+        assertEquals(listOf("bob"), storage.activeSessions("bob").map { it.username })
     }
 
     /**
-     * Verifies that stored sessions remain available after storage is reconstructed.
+     * Verifies that restored sessions use the currently configured lifetime.
      *
      * @param tempDirectory temporary session directory supplied by JUnit
      */
     @Test
-    fun `sessions survive storage restart`(@TempDir tempDirectory: Path) = runBlocking {
+    fun `restored sessions use current lifetime`(@TempDir tempDirectory: Path) = runBlocking {
         val firstStorage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
         firstStorage.write("session_id", serializedSession("alice", "192.0.2.10"))
 
-        val restoredStorage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_050 }
+        val restoredStorage = UserFileSessionStorage(tempDirectory.toFile(), 200) { 1_050 }
+        val restoredSession = restoredStorage.activeSessions().single()
 
         assertEquals(UserSession("alice", "192.0.2.10"), readSession(restoredStorage, "session_id"))
+        assertEquals(1_000, restoredSession.createdAt)
+        assertEquals(1_200, restoredSession.expiresAt)
     }
 
     /**
@@ -129,11 +135,33 @@ class UserFileSessionStorageTest {
     fun `legacy record receives unknown client address`(@TempDir tempDirectory: Path) = runBlocking {
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
         sessionFile.writeText("session_id\t1100\n")
+        assertTrue(sessionFile.setLastModified(1_000_000))
 
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
 
         assertEquals(UserSession("alice", "unknown"), readSession(storage, "session_id"))
-        assertEquals("session_id\t1100\tunknown\n", sessionFile.readText())
+        assertEquals(
+            "session_id\t1000\tunknown\n",
+            sessionFile.readText()
+        )
+    }
+
+    /**
+     * Verifies that files written with the temporary format marker become headerless.
+     *
+     * @param tempDirectory temporary session directory supplied by JUnit
+     */
+    @Test
+    fun `temporary format header is removed`(@TempDir tempDirectory: Path) = runBlocking {
+        val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
+        sessionFile.writeText(
+            "# timestamp=created-at\nsession_id\t1000\t192.0.2.10\n"
+        )
+
+        val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
+
+        assertEquals(UserSession("alice", "192.0.2.10"), readSession(storage, "session_id"))
+        assertEquals("session_id\t1000\t192.0.2.10\n", sessionFile.readText())
     }
 
     /**

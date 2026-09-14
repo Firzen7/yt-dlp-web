@@ -32,6 +32,7 @@ private fun dispatchCommand(args: Array<String>) {
         "passwd" -> runUsernameCommand(args, "passwd", ::changePassword)
         "listusers" -> listUsers()
         "deluser" -> runUsernameCommand(args, "deluser", ::deleteUser)
+        "sessions" -> listSessions(args.getOrNull(1))
         "config" -> printConfiguration()
         "--help", "-h", "help" -> printUsage()
         else -> printUsageError("Unknown command: $command")
@@ -94,6 +95,7 @@ internal fun usageText(jarName: String = currentJarName()): String {
           passwd <username>        Interactively change a user's password
           listusers                List all existing users
           deluser <username>       Delete a user
+          sessions [username]      List active sessions, optionally for one user
           config                   Show the active configuration file and its contents
           --help, -h, help         Show this help
     """.trimIndent()
