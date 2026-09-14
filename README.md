@@ -166,7 +166,7 @@ Passwords are stored as salted scrypt hashes in a Werkzeug-compatible text forma
 
 ## Web UI
 
-Users sign in with an account created through the CLI. The HTTP-only `SESSION` cookie contains only an opaque random identifier. Server-side sessions are stored in `<fs.session_directory>/<username>.sessions`, with one tab-separated identifier and expiration timestamp per line. Their lifetime is configured by `auth.login_session_length`.
+Users sign in with an account created through the CLI. The HTTP-only `SESSION` cookie contains only an opaque random identifier. Server-side sessions are stored in `<fs.session_directory>/<username>.sessions`, with a tab-separated identifier, expiration timestamp, and login IP address on each line. Their lifetime is configured by `auth.login_session_length`.
 
 Video mode downloads the best available format by default. Users can explicitly request available resolutions; yt-dlp is queried only when the selection button is pressed. Playlists and live streams are intentionally excluded.
 

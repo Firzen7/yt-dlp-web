@@ -22,14 +22,14 @@ class UserFileSessionStorageTest {
     fun `sessions are stored in one file per user`(@TempDir tempDirectory: Path) = runBlocking {
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
 
-        storage.write("first_id", "alice")
-        storage.write("second_id", "alice")
-        storage.write("third_id", "bob")
+        storage.write("first_id", serializedSession("alice", "192.0.2.10"))
+        storage.write("second_id", serializedSession("alice", "2001:db8::10"))
+        storage.write("third_id", serializedSession("bob", "198.51.100.20"))
 
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
-        assertEquals("alice", storage.read("first_id"))
-        assertTrue(sessionFile.readLines().contains("first_id\t1100"))
-        assertTrue(sessionFile.readLines().contains("second_id\t1100"))
+        assertEquals(UserSession("alice", "192.0.2.10"), readSession(storage, "first_id"))
+        assertTrue(sessionFile.readLines().contains("first_id\t1100\t192.0.2.10"))
+        assertTrue(sessionFile.readLines().contains("second_id\t1100\t2001:db8::10"))
         assertTrue(tempDirectory.resolve("bob.sessions").toFile().exists())
     }
 
@@ -41,11 +41,11 @@ class UserFileSessionStorageTest {
     @Test
     fun `sessions survive storage restart`(@TempDir tempDirectory: Path) = runBlocking {
         val firstStorage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
-        firstStorage.write("session_id", "alice")
+        firstStorage.write("session_id", serializedSession("alice", "192.0.2.10"))
 
         val restoredStorage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_050 }
 
-        assertEquals("alice", restoredStorage.read("session_id"))
+        assertEquals(UserSession("alice", "192.0.2.10"), readSession(restoredStorage, "session_id"))
     }
 
     /**
@@ -58,7 +58,7 @@ class UserFileSessionStorageTest {
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
 
-        storage.write("session_id", "alice")
+        storage.write("session_id", serializedSession("alice", "192.0.2.10"))
         storage.invalidate("session_id")
 
         assertFalse(sessionFile.exists())
@@ -76,7 +76,7 @@ class UserFileSessionStorageTest {
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 10) { currentTime }
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
 
-        storage.write("session_id", "alice")
+        storage.write("session_id", serializedSession("alice", "192.0.2.10"))
         currentTime = 1_011L
 
         assertMissingSession(storage, "session_id")
@@ -93,7 +93,7 @@ class UserFileSessionStorageTest {
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
 
-        storage.write("session_id", "alice")
+        storage.write("session_id", serializedSession("alice", "192.0.2.10"))
         assertTrue(sessionFile.delete())
 
         assertMissingSession(storage, "session_id")
@@ -111,13 +111,29 @@ class UserFileSessionStorageTest {
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
 
-        storage.write("old_id", "alice")
+        storage.write("old_id", serializedSession("alice", "192.0.2.10"))
         assertTrue(sessionFile.delete())
-        storage.write("new_id", "alice")
+        storage.write("new_id", serializedSession("alice", "198.51.100.20"))
 
         assertMissingSession(storage, "old_id")
-        assertEquals("alice", storage.read("new_id"))
+        assertEquals(UserSession("alice", "198.51.100.20"), readSession(storage, "new_id"))
         assertFalse(sessionFile.readText().contains("old_id"))
+    }
+
+    /**
+     * Verifies that old two-column records retain their timestamp during normalization.
+     *
+     * @param tempDirectory temporary session directory supplied by JUnit
+     */
+    @Test
+    fun `legacy record receives unknown client address`(@TempDir tempDirectory: Path) = runBlocking {
+        val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
+        sessionFile.writeText("session_id\t1100\n")
+
+        val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
+
+        assertEquals(UserSession("alice", "unknown"), readSession(storage, "session_id"))
+        assertEquals("session_id\t1100\tunknown\n", sessionFile.readText())
     }
 
     /**
@@ -130,5 +146,27 @@ class UserFileSessionStorageTest {
         assertThrows(NoSuchElementException::class.java) {
             runBlocking { storage.read(id) }
         }
+    }
+
+    /**
+     * Serializes a session in the same form Ktor supplies to the storage backend.
+     *
+     * @param username authenticated account name
+     * @param clientAddress login-origin network address
+     * @return serialized server-side session
+     */
+    private fun serializedSession(username: String, clientAddress: String): String {
+        return UserSessionSerializer.serialize(UserSession(username, clientAddress))
+    }
+
+    /**
+     * Reads and deserializes a session from its opaque identifier.
+     *
+     * @param storage storage containing the session
+     * @param id opaque session identifier
+     * @return restored user session
+     */
+    private suspend fun readSession(storage: UserFileSessionStorage, id: String): UserSession {
+        return UserSessionSerializer.deserialize(storage.read(id))
     }
 }
