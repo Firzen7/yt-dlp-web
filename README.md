@@ -85,6 +85,7 @@ fs.js_runtime_path=/usr/bin/node
 
 auth.users_file=./users.conf
 auth.login_session_length=2592000
+auth.minimum_password_entropy=45
 
 process.timeout=1200
 ```
@@ -99,6 +100,7 @@ process.timeout=1200
 | `fs.js_runtime_path` | `FS_JS_RUNTIME_PATH` | `/usr/bin/node` | Executable path paired with `fs.js_runtime_type`. |
 | `auth.users_file` | `AUTH_USERS_FILE` | `./users.conf` | Credential file used by the CLI and Web UI. Relative paths are resolved from the process working directory. |
 | `auth.login_session_length` | `AUTH_LOGIN_SESSION_LENGTH` | `2592000` | Lifetime of an authenticated browser session in seconds. The default is 30 days. |
+| `auth.minimum_password_entropy` | `AUTH_MINIMUM_PASSWORD_ENTROPY` | `45` | Minimum estimated entropy accepted for a new password. Must be positive. |
 | `process.timeout` | `PROCESS_TIMEOUT` | `1200` | Maximum child-process runtime in seconds. It is also used for the ffmpeg network timeout. |
 
 Example override:
@@ -245,7 +247,7 @@ The Web UI uses a small JSON API. Routes marked **session** require a valid logi
 | `POST` | `/api/resolutions` | Session | Accepts `url` and returns unique video widths and heights. |
 | `POST` | `/api/decode` | Session | Accepts `base64` and returns the decoded URL. |
 | `POST` | `/api/change-password` | Session | Accepts `currentPassword`, `newPassword`, and `confirmNewPassword`. |
-| `POST` | `/api/password-entropy` | Public | Accepts `password` and returns its estimated entropy. |
+| `POST` | `/api/password-entropy` | Public | Accepts `password` and returns its estimated entropy and the configured minimum. |
 
 The download request accepts this shape:
 

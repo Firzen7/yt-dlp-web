@@ -11,6 +11,7 @@ import com.natpryce.konfig.stringType
 import java.io.File
 
 private const val DEFAULT_LOGIN_SESSION_LENGTH = 30 * 24 * 60 * 60L
+private const val DEFAULT_MINIMUM_PASSWORD_ENTROPY = 32
 
 // Path of the configuration file selected for this application process.
 val ACTIVE_CONFIG_FILE = availableConfigPath()
@@ -54,6 +55,14 @@ val LOGIN_SESSION_LENGTH = try {
     conf[Key("auth.login_session_length", longType)]
 } catch (_: Exception) {
     DEFAULT_LOGIN_SESSION_LENGTH
+}
+
+// Minimum estimated entropy accepted for a new password.
+val MINIMUM_PASSWORD_ENTROPY = try {
+    conf[Key("auth.minimum_password_entropy", intType)]
+        .takeIf { it > 0 } ?: DEFAULT_MINIMUM_PASSWORD_ENTROPY
+} catch (_: Exception) {
+    DEFAULT_MINIMUM_PASSWORD_ENTROPY
 }
 
 /**

@@ -790,7 +790,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const strengthLabel = document.getElementById('password-strength-label');
     const savePasswordBtn = document.getElementById('save-password-btn');
 
-    const minimumPasswordEntropy = 45;
+    let minimumPasswordEntropy = null;
     let currentEntropy = 0;
     let measuredPassword = '';
     let entropyTimeout = null;
@@ -808,7 +808,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const data = await response.json();
-        return Number(data.entropy) || 0;
+        const entropy = Number(data.entropy) || 0;
+        const minimumEntropy = Number(data.minimumEntropy);
+
+        if (!Number.isFinite(minimumEntropy) || minimumEntropy <= 0) {
+            throw new Error('Invalid minimum password entropy');
+        }
+
+        return { entropy, minimumEntropy };
     };
 
     const checkPasswordStrength = (password) => {
@@ -825,12 +832,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         entropyTimeout = setTimeout(async () => {
             try {
-                const entropy = await requestPasswordEntropy(password);
+                const result = await requestPasswordEntropy(password);
                 if (requestId !== entropyRequestId) return;
 
-                currentEntropy = entropy;
+                currentEntropy = result.entropy;
+                minimumPasswordEntropy = result.minimumEntropy;
                 measuredPassword = password;
-                updateStrengthUI(entropy);
+                updateStrengthUI(currentEntropy);
             } catch (err) {
                 console.error('Error fetching password entropy:', err);
             }
@@ -838,7 +846,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const updateStrengthUI = (entropy) => {
-        const percentage = Math.min((entropy / minimumPasswordEntropy) * 100, 100);
+        const percentage = minimumPasswordEntropy === null
+            ? 0
+            : Math.min((entropy / minimumPasswordEntropy) * 100, 100);
+        const weakEntropy = minimumPasswordEntropy === null
+            ? Number.POSITIVE_INFINITY
+            : minimumPasswordEntropy * 5 / 9;
+        const veryStrongEntropy = minimumPasswordEntropy === null
+            ? Number.POSITIVE_INFINITY
+            : minimumPasswordEntropy + 20;
         
         if (strengthBar) {
             strengthBar.style.width = `${percentage}%`;
@@ -846,13 +862,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             let color = '#ff3b30'; // Red
             let glowColor = 'rgba(255, 59, 48, 0.5)';
 
-            if (entropy >= 65) {
+            if (entropy >= veryStrongEntropy) {
                 color = '#00c3ff'; // Cyan
                 glowColor = 'rgba(0, 195, 255, 0.5)';
-            } else if (entropy >= minimumPasswordEntropy) {
+            } else if (minimumPasswordEntropy !== null && entropy >= minimumPasswordEntropy) {
                 color = '#34c759'; // Green
                 glowColor = 'rgba(52, 199, 89, 0.5)';
-            } else if (entropy >= 25) {
+            } else if (entropy >= weakEntropy) {
                 color = '#ffcc00'; // Yellow
                 glowColor = 'rgba(255, 204, 0, 0.5)';
             }
@@ -863,11 +879,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (strengthLabel) {
             let strengthKey = 'password.strength.tooWeak';
-            if (entropy >= 65) {
+            if (entropy >= veryStrongEntropy) {
                 strengthKey = 'password.strength.veryStrong';
-            } else if (entropy >= minimumPasswordEntropy) {
+            } else if (minimumPasswordEntropy !== null && entropy >= minimumPasswordEntropy) {
                 strengthKey = 'password.strength.strong';
-            } else if (entropy >= 25) {
+            } else if (entropy >= weakEntropy) {
                 strengthKey = 'password.strength.weak';
             }
             setText(strengthLabel, strengthKey);
@@ -921,12 +937,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const requestId = ++entropyRequestId;
 
         try {
-            const entropy = await requestPasswordEntropy(password);
+            const result = await requestPasswordEntropy(password);
             if (requestId !== entropyRequestId) return false;
 
-            currentEntropy = entropy;
+            currentEntropy = result.entropy;
+            minimumPasswordEntropy = result.minimumEntropy;
             measuredPassword = password;
-            updateStrengthUI(entropy);
+            updateStrengthUI(currentEntropy);
             return true;
         } catch (err) {
             console.error('Error fetching password entropy:', err);
@@ -1043,12 +1060,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.location.href = '/login';
                 }, 2000);
             } else {
-                const errorKey = response.status === 400
-                    ? 'password.errors.currentInvalid'
-                    : 'password.errors.changeFailed';
-                const input = response.status === 400
-                    ? currentPasswordInput
-                    : null;
+                const errorData = await response.json().catch(() => ({}));
+                const passwordTooWeak = errorData.code === 'PASSWORD_TOO_WEAK';
+                const errorKey = passwordTooWeak
+                    ? 'password.errors.tooWeak'
+                    : response.status === 400
+                        ? 'password.errors.currentInvalid'
+                        : 'password.errors.changeFailed';
+                const input = passwordTooWeak
+                    ? newPasswordInput
+                    : response.status === 400
+                        ? currentPasswordInput
+                        : null;
 
                 showPasswordError(errorKey, input);
                 savePasswordBtn.disabled = false;

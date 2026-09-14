@@ -12,6 +12,7 @@ import io.ktor.server.sessions.sessions
 import io.ktor.server.sessions.set
 import net.firzen.web.UserManager
 import net.firzen.web.logging.LogLevel
+import net.firzen.web.tools.MINIMUM_PASSWORD_ENTROPY
 import net.firzen.web.tools.UNKNOWN_USER
 import net.firzen.web.tools.respondJson
 import org.json.JSONObject
@@ -27,6 +28,17 @@ private data class PasswordChangeRequest(
     val currentPassword: String,
     val newPassword: String,
     val confirmation: String
+)
+
+/**
+ * Describes a password-change validation failure returned to the Web UI.
+ *
+ * @param message localized fallback message
+ * @param code stable error code used by the Web UI
+ */
+private data class PasswordValidationError(
+    val message: String,
+    val code: String
 )
 
 /**
@@ -123,11 +135,14 @@ private suspend fun handleChangePassword(userManager: UserManager, call: Routing
         )
 
     val request = readPasswordChangeRequest(call)
-    val validationError = validatePasswordChange(request)
+    val validationError = validatePasswordChange(userManager, request)
 
     if (validationError != null) {
         return call.respondJson(
-            """{"error": "$validationError"}""",
+            JSONObject()
+                .put("error", validationError.message)
+                .put("code", validationError.code)
+                .toString(),
             HttpStatusCode.BadRequest
         )
     }
@@ -155,20 +170,28 @@ private suspend fun readPasswordChangeRequest(call: RoutingCall): PasswordChange
 /**
  * Returns a user-facing validation message when a proposed password is invalid.
  *
+ * @param userManager manager providing password entropy calculation
  * @param request password-change values to validate
- * @return validation message, or `null` when the request is valid
+ * @return validation failure, or `null` when the request is valid
  */
-private fun validatePasswordChange(request: PasswordChangeRequest): String? {
+private fun validatePasswordChange(
+    userManager: UserManager,
+    request: PasswordChangeRequest
+): PasswordValidationError? {
     if (request.currentPassword.isEmpty()) {
-        return "Aktuální heslo nesmí být prázdné."
+        return PasswordValidationError("Aktuální heslo nesmí být prázdné.", "CURRENT_REQUIRED")
     }
 
     if (request.newPassword.isEmpty()) {
-        return "Nové heslo nesmí být prázdné."
+        return PasswordValidationError("Nové heslo nesmí být prázdné.", "NEW_REQUIRED")
     }
 
     if (request.newPassword != request.confirmation) {
-        return "Nová hesla se neshodují."
+        return PasswordValidationError("Nová hesla se neshodují.", "PASSWORD_MISMATCH")
+    }
+
+    if (userManager.computeEntropy(request.newPassword) < MINIMUM_PASSWORD_ENTROPY) {
+        return PasswordValidationError("Nové heslo není dostatečně silné.", "PASSWORD_TOO_WEAK")
     }
 
     return null
@@ -274,7 +297,11 @@ private suspend fun handlePasswordEntropy(userManager: UserManager, call: Routin
     try {
         val password = JSONObject(call.receiveText()).optString("password", "")
 
-        call.respondJson("""{"entropy": ${userManager.computeEntropy(password)}}""")
+        val response = JSONObject()
+            .put("entropy", userManager.computeEntropy(password))
+            .put("minimumEntropy", MINIMUM_PASSWORD_ENTROPY)
+
+        call.respondJson(response.toString())
     } catch (_: Exception) {
         call.logPersistentAction(
             LogLevel.WARNING,
