@@ -167,19 +167,30 @@ fun listUsers() {
 }
 
 /**
- * Prints active server-side sessions for every user or one selected user.
+ * Prints active server-side sessions for every user or selected users.
  *
- * @param username optional username used to filter the session list
+ * @param usernames optional usernames used to filter the session list
  */
-fun listSessions(username: String? = null) {
-    if (username != null && !UserManager.isValidUsername(username)) {
-        println("Username may only contain letters and digits")
+fun listSessions(usernames: List<String> = emptyList()) {
+    val invalidUsername = usernames.firstOrNull { !UserManager.isValidUsername(it) }
+
+    if (invalidUsername != null) {
+        println("Invalid username '$invalidUsername': usernames may only contain letters and digits")
         return
     }
 
     try {
         val storage = UserFileSessionStorage(File(SESSION_DIRECTORY), LOGIN_SESSION_LENGTH)
-        printSessions(storage.activeSessions(username), username)
+        val sessions = storage.activeSessions()
+        val requestedUsers = usernames.distinct()
+
+        if (requestedUsers.isEmpty()) {
+            printSessions(sessions, null)
+        } else {
+            requestedUsers.forEach { username ->
+                printSessions(sessions.filter { it.username == username }, username)
+            }
+        }
     } catch (e: Exception) {
         println("Failed to list sessions: ${e.message}")
     }

@@ -153,9 +153,10 @@ The user must already exist. The command displays the username and requires inte
 ```bash
 java -jar yt-dlp-web.jar sessions
 java -jar yt-dlp-web.jar sessions <username>
+java -jar yt-dlp-web.jar sessions <username-1> <username-2> [...]
 ```
 
-Without a username, the command lists active sessions for every user. With a username, it only lists that user's sessions. Output includes the login IP address, UTC creation and expiration times, and a masked session identifier.
+Without usernames, the command lists active sessions for every user. With one or more usernames, it prints sessions separately for each requested user. Output includes the login IP address, UTC creation and expiration times, and a masked session identifier.
 
 ### Show the configuration
 

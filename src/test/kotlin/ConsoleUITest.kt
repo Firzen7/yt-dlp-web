@@ -38,7 +38,7 @@ class ConsoleUITest {
         assertTrue(usage.contains("\n  passwd <username> "))
         assertTrue(usage.contains("\n  listusers "))
         assertTrue(usage.contains("\n  deluser <username> "))
-        assertTrue(usage.contains("\n  sessions [username] "))
+        assertTrue(usage.contains("\n  sessions [username ...] "))
         assertTrue(usage.contains("\n  config "))
         assertTrue(usage.contains("\n  --help, -h, help "))
     }
