@@ -221,6 +221,7 @@ private fun printSessions(sessions: List<ActiveSession>, username: String?) {
 private fun printSession(session: ActiveSession) {
     println("  User: ${session.username}")
     println("  IP address: ${session.clientAddress}")
+    println("  Operating system: ${session.operatingSystem}")
     println("  Created at (UTC): ${Instant.ofEpochSecond(session.createdAt)}")
     println("  Expires at (UTC): ${Instant.ofEpochSecond(session.expiresAt)}")
     println("  Session ID: ${maskSessionId(session.id)}")

@@ -7,9 +7,11 @@ import kotlinx.serialization.Serializable
  *
  * @param username authenticated account name
  * @param clientAddress network address used to create the session
+ * @param operatingSystem operating system reported at login, or `unknown`
  */
 @Serializable
 data class UserSession(
     val username: String,
-    val clientAddress: String
+    val clientAddress: String,
+    val operatingSystem: String = "unknown"
 )

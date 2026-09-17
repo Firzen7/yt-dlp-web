@@ -28,8 +28,8 @@ class UserFileSessionStorageTest {
 
         val sessionFile = tempDirectory.resolve("alice.sessions").toFile()
         assertEquals(UserSession("alice", "192.0.2.10"), readSession(storage, "first_id"))
-        assertTrue(sessionFile.readLines().contains("first_id\t1000\t192.0.2.10"))
-        assertTrue(sessionFile.readLines().contains("second_id\t1000\t2001:db8::10"))
+        assertTrue(sessionFile.readLines().contains("first_id\t1000\t192.0.2.10\tunknown"))
+        assertTrue(sessionFile.readLines().contains("second_id\t1000\t2001:db8::10\tunknown"))
         assertTrue(tempDirectory.resolve("bob.sessions").toFile().exists())
 
         assertEquals(listOf("alice", "alice", "bob"), storage.activeSessions().map { it.username })
@@ -141,7 +141,7 @@ class UserFileSessionStorageTest {
 
         assertEquals(UserSession("alice", "unknown"), readSession(storage, "session_id"))
         assertEquals(
-            "session_id\t1000\tunknown\n",
+            "session_id\t1000\tunknown\tunknown\n",
             sessionFile.readText()
         )
     }
@@ -161,7 +161,44 @@ class UserFileSessionStorageTest {
         val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
 
         assertEquals(UserSession("alice", "192.0.2.10"), readSession(storage, "session_id"))
-        assertEquals("session_id\t1000\t192.0.2.10\n", sessionFile.readText())
+        assertEquals("session_id\t1000\t192.0.2.10\tunknown\n", sessionFile.readText())
+    }
+
+    /**
+     * Verifies that login OS information survives persistence and appears in CLI summaries.
+     *
+     * @param tempDirectory temporary session directory supplied by JUnit
+     */
+    @Test
+    fun `operating system survives restart`(@TempDir tempDirectory: Path) = runBlocking {
+        val session = UserSession("alice", "192.0.2.10", "Android")
+        val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_000 }
+        storage.write("session_id", UserSessionSerializer.serialize(session))
+
+        val restored = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_010 }
+
+        assertEquals(session, readSession(restored, "session_id"))
+        assertEquals("Android", restored.activeSessions().single().operatingSystem)
+        assertEquals(
+            "session_id\t1000\t192.0.2.10\tAndroid\n",
+            tempDirectory.resolve("alice.sessions").toFile().readText()
+        )
+    }
+
+    /**
+     * Verifies that headerless records without OS information retain their creation time.
+     *
+     * @param tempDirectory temporary session directory supplied by JUnit
+     */
+    @Test
+    fun `old records receive unknown operating system`(@TempDir tempDirectory: Path) = runBlocking {
+        val file = tempDirectory.resolve("alice.sessions").toFile()
+        file.writeText("session_id\t1000\t192.0.2.10\n")
+
+        val storage = UserFileSessionStorage(tempDirectory.toFile(), 100) { 1_010 }
+
+        assertEquals(UserSession("alice", "192.0.2.10"), readSession(storage, "session_id"))
+        assertEquals("session_id\t1000\t192.0.2.10\tunknown\n", file.readText())
     }
 
     /**

@@ -158,7 +158,7 @@ java -jar yt-dlp-web.jar sessions <username>
 java -jar yt-dlp-web.jar sessions <username-1> <username-2> [...]
 ```
 
-Without usernames, the command lists active sessions for every user. With one or more usernames, it prints sessions separately for each requested user. Output includes the login IP address, UTC creation and expiration times, and a masked session identifier.
+Without usernames, the command lists active sessions for every user. With one or more usernames, it prints sessions separately for each requested user. Output includes the login IP address, operating system, UTC creation and expiration times, and a masked session identifier.
 
 ### Show the configuration
 
@@ -178,7 +178,9 @@ Passwords are stored as salted scrypt hashes in a Werkzeug-compatible text forma
 
 ## Web UI
 
-Users sign in with an account created through the CLI. The HTTP-only `SESSION` cookie contains only an opaque random identifier. Server-side sessions are stored in `<fs.session_directory>/<username>.sessions`, with a tab-separated identifier, creation timestamp, and login IP address on each line. Expiration is calculated from the creation timestamp and the current `auth.login_session_length` value.
+Users sign in with an account created through the CLI. The HTTP-only `SESSION` cookie contains only an opaque random identifier. Server-side sessions are stored in `<fs.session_directory>/<username>.sessions`, with a tab-separated identifier, creation timestamp, login IP address, and operating system on each line. Expiration is calculated from the creation timestamp and the current `auth.login_session_length` value.
+
+The operating system is inferred from browser headers at login and may be unavailable or inaccurate. Existing records without OS information use `unknown`.
 
 Video mode downloads the best available format by default. Users can explicitly request available resolutions; yt-dlp is queried only when the selection button is pressed. Playlists and live streams are intentionally excluded.
 

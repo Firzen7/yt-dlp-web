@@ -64,6 +64,7 @@ private fun requireValidUserSession(session: UserSession) {
     require(session.clientAddress.none { it == '\t' || it == '\r' || it == '\n' }) {
         "Invalid session client address"
     }
+    require(isValidOperatingSystem(session.operatingSystem)) { "Invalid session operating system" }
 }
 
 /**
@@ -131,7 +132,9 @@ internal class UserFileSessionStorage(
             reloadUser(username)
             if (previousUser != null && previousUser != username) reloadUser(previousUser)
 
-            sessions[id] = StoredSession(username, currentEpochSeconds(), userSession.clientAddress)
+            sessions[id] = StoredSession(
+                username, currentEpochSeconds(), userSession.clientAddress, userSession.operatingSystem
+            )
 
             if (previousUser != null && previousUser != username) persistUser(previousUser)
             persistUser(username)
@@ -161,7 +164,7 @@ internal class UserFileSessionStorage(
             }
 
             UserSessionSerializer.serialize(
-                UserSession(session.username, session.clientAddress)
+                UserSession(session.username, session.clientAddress, session.operatingSystem)
             )
         }
     }
@@ -297,7 +300,7 @@ internal class UserFileSessionStorage(
      * Parses one unexpired session record.
      *
      * @param username username represented by the containing file
-     * @param line tab-separated identifier, timestamp, and client address
+     * @param line tab-separated identifier, timestamp, client address, and operating system
      * @param storesCreationTime whether the file uses the current creation-time format
      * @return parsed identifier and session, or `null` for malformed or expired data
      */
@@ -306,16 +309,18 @@ internal class UserFileSessionStorage(
         line: String,
         storesCreationTime: Boolean
     ): Pair<String, StoredSession>? {
-        val fields = line.split(RECORD_SEPARATOR, limit = 3)
-        if (fields.size !in 2..3 || !SESSION_ID_PATTERN.matches(fields[0])) return null
+        val fields = line.split(RECORD_SEPARATOR, limit = 4)
+        if (fields.size !in 2..4 || !SESSION_ID_PATTERN.matches(fields[0])) return null
 
         val storedTimestamp = fields[1].toLongOrNull() ?: return null
         val createdAt = resolveCreationTime(storedTimestamp, storesCreationTime) ?: return null
         if (expirationTime(createdAt) <= currentEpochSeconds()) return null
         val clientAddress = fields.getOrElse(2) { UNKNOWN_CLIENT_ADDRESS }
         if (!isValidClientAddress(clientAddress)) return null
+        val operatingSystem = fields.getOrElse(3) { "unknown" }
+        if (!isValidOperatingSystem(operatingSystem)) return null
 
-        return fields[0] to StoredSession(username, createdAt, clientAddress)
+        return fields[0] to StoredSession(username, createdAt, clientAddress, operatingSystem)
     }
 
     /**
@@ -369,7 +374,7 @@ internal class UserFileSessionStorage(
      */
     private fun sessionRecordLine(id: String, session: StoredSession): String {
         return "$id$RECORD_SEPARATOR${session.createdAt}" +
-            "$RECORD_SEPARATOR${session.clientAddress}"
+            "$RECORD_SEPARATOR${session.clientAddress}$RECORD_SEPARATOR${session.operatingSystem}"
     }
 
     /**
@@ -454,11 +459,13 @@ internal class UserFileSessionStorage(
  * @param username authenticated account name
  * @param createdAt creation time as Unix epoch seconds
  * @param clientAddress network address used to create the session
+ * @param operatingSystem operating system reported at login
  */
 private data class StoredSession(
     val username: String,
     val createdAt: Long,
-    val clientAddress: String
+    val clientAddress: String,
+    val operatingSystem: String
 )
 
 /**
@@ -476,7 +483,8 @@ private fun StoredSession.toActiveSession(id: String, lifetimeSeconds: Long): Ac
         username,
         createdAt,
         Math.addExact(createdAt, lifetimeSeconds),
-        clientAddress
+        clientAddress,
+        operatingSystem
     )
 }
 
@@ -488,14 +496,26 @@ private fun StoredSession.toActiveSession(id: String, lifetimeSeconds: Long): Ac
  * @param createdAt creation time as Unix epoch seconds
  * @param expiresAt expiration time as Unix epoch seconds
  * @param clientAddress network address used to create the session
+ * @param operatingSystem operating system reported at login
  */
 internal data class ActiveSession(
     val id: String,
     val username: String,
     val createdAt: Long,
     val expiresAt: Long,
-    val clientAddress: String
+    val clientAddress: String,
+    val operatingSystem: String
 )
+
+/**
+ * Checks that an operating system name is safe to store and print in the terminal.
+ *
+ * @param operatingSystem reported operating system name
+ * @return `true` for a nonblank value without control characters
+ */
+private fun isValidOperatingSystem(operatingSystem: String): Boolean {
+    return operatingSystem.isNotBlank() && operatingSystem.none { it.isISOControl() }
+}
 
 /**
  * Reports whether a client address can be represented by one plaintext record field.

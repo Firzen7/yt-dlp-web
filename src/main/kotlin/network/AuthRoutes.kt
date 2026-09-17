@@ -81,7 +81,11 @@ private suspend fun performLogin(userManager: UserManager, call: RoutingCall) {
  * @param username account that successfully authenticated
  */
 private suspend fun completeLogin(call: RoutingCall, username: String) {
-    call.sessions.set(UserSession(username, call.clientIpAddress()))
+    val operatingSystem = detectOperatingSystem(
+        call.request.headers["Sec-CH-UA-Platform"],
+        call.request.headers["User-Agent"]
+    )
+    call.sessions.set(UserSession(username, call.clientIpAddress(), operatingSystem))
     call.respondJson("""{"ok": true}""")
 
     call.logPersistentAction(LogLevel.INFO, username, "Successful login")
