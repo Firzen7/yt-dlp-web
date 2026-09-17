@@ -88,7 +88,7 @@ private suspend fun completeLogin(call: RoutingCall, username: String) {
     call.sessions.set(UserSession(username, call.clientIpAddress(), operatingSystem))
     call.respondJson("""{"ok": true}""")
 
-    call.logPersistentAction(LogLevel.INFO, username, "Successful login")
+    call.logPersistentAction(LogLevel.INFO, username, "Successful login on $operatingSystem")
 }
 
 /**
