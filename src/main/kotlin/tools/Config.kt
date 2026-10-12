@@ -8,6 +8,7 @@ import com.natpryce.konfig.intType
 import com.natpryce.konfig.longType
 import com.natpryce.konfig.overriding
 import com.natpryce.konfig.stringType
+import net.firzen.web.UserManager
 import java.io.File
 
 private const val DEFAULT_LOGIN_SESSION_LENGTH = 30 * 24 * 60 * 60L
@@ -20,10 +21,10 @@ private val conf = systemProperties() overriding
         EnvironmentVariables() overriding
         ConfigurationProperties.fromFile(File(ACTIVE_CONFIG_FILE))
 
-// Primary configuration path used by packaged installations.
-const val CONFIG_FILE = "/opt/yt-dlp-web/config.conf"
-// Bundled configuration used when the installation-specific file is unavailable.
-const val DEFAULTS_CONF_FILE = "src/main/resources/defaults.conf"
+// Configuration file in the application's working directory.
+const val CONFIG_FILE = "./config.conf"
+// Classpath resource containing defaults for new configuration files.
+const val DEFAULTS_CONF_FILE = "defaults.conf"
 // Port on which the HTTP server accepts connections.
 val SERVER_PORT = conf[Key("server.port", intType)]
 // Directory where completed downloads are stored.
@@ -66,19 +67,24 @@ val MINIMUM_PASSWORD_ENTROPY = try {
 }
 
 /**
- * Selects the installed configuration or creates it from the bundled defaults.
+ * Selects the working-directory configuration or creates it from bundled defaults.
  *
  * @return path of the configuration file that should be loaded
  * @throws java.io.IOException when the default configuration cannot be copied
+ * @throws IllegalStateException when the bundled defaults resource is missing
  */
 private fun availableConfigPath(): String {
-    if (File(CONFIG_FILE).exists()) {
-        return CONFIG_FILE
-    } else {
-        File(DEFAULTS_CONF_FILE).copyTo(
-            File(CONFIG_FILE)
-        )
+    val configFile = File(CONFIG_FILE)
 
-        return DEFAULTS_CONF_FILE
+    if (!configFile.exists()) {
+        val defaults = checkNotNull(
+            UserManager::class.java.classLoader.getResourceAsStream(DEFAULTS_CONF_FILE)
+        ) { "Bundled configuration defaults are missing" }
+
+        defaults.use { input ->
+            configFile.outputStream().use { output -> input.copyTo(output) }
+        }
     }
+
+    return CONFIG_FILE
 }

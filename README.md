@@ -34,19 +34,7 @@ The runnable fat JAR is created as `build/libs/yt-dlp-web-v<version>.jar`. The c
 
 ## Initial Setup
 
-The packaged application expects its configuration at `/opt/yt-dlp-web/config.conf`. Create the application and log directories, copy the defaults, and make them writable by the account that will run the server:
-
-```bash
-sudo mkdir -p /opt/yt-dlp-web/logs
-sudo cp src/main/resources/defaults.conf /opt/yt-dlp-web/config.conf
-sudo editor /opt/yt-dlp-web/config.conf
-```
-
-For a packaged installation, an absolute user-file path is recommended:
-
-```properties
-auth.users_file=/opt/yt-dlp-web/users.conf
-```
+Run the application from a writable directory. It automatically creates `config.conf` there from the defaults bundled in the JAR if the file is missing. Logs are written to `./logs`, which is created when needed. Edit `config.conf` to customize the settings.
 
 Create the first account from an interactive terminal:
 
@@ -67,7 +55,7 @@ Open `http://<server-address>:8080/`, or use the port configured below.
 The main configuration file is:
 
 ```text
-/opt/yt-dlp-web/config.conf
+./config.conf
 ```
 
 Values are read at startup. JVM system properties have the highest priority, followed by environment variables and then the configuration file. For example, `-Dserver.port=5000` overrides `SERVER_PORT`, which overrides `server.port` in the file.
@@ -78,7 +66,7 @@ The default configuration is:
 server.port=8080
 
 fs.download_directory=/tmp/yt-dlp-web
-fs.log_directory=/opt/yt-dlp-web/logs
+fs.log_directory=./logs
 fs.session_directory=./sessions
 fs.js_runtime_type=node
 fs.js_runtime_path=/usr/bin/node
@@ -94,7 +82,7 @@ process.timeout=1200
 | --- | --- | --- | --- |
 | `server.port` | `SERVER_PORT` | `8080` | TCP port used by the embedded Netty HTTP server. |
 | `fs.download_directory` | `FS_DOWNLOAD_DIRECTORY` | `/tmp/yt-dlp-web` | Parent directory for downloads. Each task receives its own UUID-named subdirectory. |
-| `fs.log_directory` | `FS_LOG_DIRECTORY` | `/opt/yt-dlp-web/logs` | Directory for persistent per-user action logs. It must already exist and be writable. |
+| `fs.log_directory` | `FS_LOG_DIRECTORY` | `./logs` | Directory for persistent per-user action logs. Created when needed; must be writable. |
 | `fs.session_directory` | `FS_SESSION_DIRECTORY` | `./sessions` | Directory for server-side session files. Relative paths are resolved from the process working directory. |
 | `fs.js_runtime_type` | `FS_JS_RUNTIME_TYPE` | `node` | Runtime name passed to yt-dlp through `--js-runtimes`. |
 | `fs.js_runtime_path` | `FS_JS_RUNTIME_PATH` | `/usr/bin/node` | Executable path paired with `fs.js_runtime_type`. |
@@ -211,7 +199,7 @@ Diagnostic messages are printed to standard output. Persistent actions are appen
 <fs.log_directory>/<username>.log
 ```
 
-Unauthenticated actions use `unknown.log`. Entries include severity, timestamp, client IP address, and action. Ensure the log directory exists before startup.
+Unauthenticated actions use `unknown.log`. Entries include severity, timestamp, client IP address, and action. The log directory is created when needed.
 
 ## Reverse Proxy
 

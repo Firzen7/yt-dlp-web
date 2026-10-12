@@ -29,6 +29,11 @@ object PersistentLogger {
         val logPath = "${LOG_DIRECTORY}/$user.log"
 
         try {
+            val logDirectory = File(LOG_DIRECTORY)
+            check(logDirectory.isDirectory || logDirectory.mkdirs()) {
+                "Could not create log directory: ${logDirectory.absolutePath}"
+            }
+
             val logfile = File(logPath)
 
             if (!logfile.exists()) {
