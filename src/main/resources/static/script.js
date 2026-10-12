@@ -508,7 +508,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Reset progress bar and text
         const progressBarBg = document.getElementById('progress-bar-bg');
-        if (progressBarBg) progressBarBg.style.width = '0%';
+        if (progressBarBg) progressBarBg.style.transform = 'scaleX(0)';
         const statusText = document.getElementById('status-text');
         setText(statusText, 'download.status.processing');
         currentMaxProgress = 0; // Reset max progress on UI reset
@@ -652,7 +652,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             });
                         }
                     }
-                    if (progressBarBg) progressBarBg.style.width = `${currentMaxProgress}%`;
+                    if (progressBarBg) progressBarBg.style.transform = `scaleX(${currentMaxProgress / 100})`;
                 }
 
                 // Still processing, poll again after 2 seconds
@@ -671,7 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const progressBarBg = document.getElementById('progress-bar-bg');
 
         setText(statusText, 'download.status.completed');
-        if (progressBarBg) progressBarBg.style.width = '100%';
+        if (progressBarBg) progressBarBg.style.transform = 'scaleX(1)';
         cancelDownloadBtn?.classList.add('hidden');
 
         // Clear input field on success
@@ -696,7 +696,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const progressBarBg = document.getElementById('progress-bar-bg');
 
         setText(statusText, 'download.status.cancelled');
-        if (progressBarBg) progressBarBg.style.width = '0%';
+        if (progressBarBg) progressBarBg.style.transform = 'scaleX(0)';
         cancelDownloadBtn?.classList.add('hidden');
 
         setTimeout(resetUI, 1000);
@@ -711,7 +711,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Reset progress bar just in case
         const progressBarBg = document.getElementById('progress-bar-bg');
-        if (progressBarBg) progressBarBg.style.width = '0%';
+        if (progressBarBg) progressBarBg.style.transform = 'scaleX(0)';
         const statusText = document.getElementById('status-text');
         setText(statusText, 'download.status.processing');
 
@@ -857,24 +857,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             : minimumPasswordEntropy + 20;
         
         if (strengthBar) {
-            strengthBar.style.width = `${percentage}%`;
+            strengthBar.style.transform = `scaleX(${percentage / 100})`;
 
             let color = '#ff3b30'; // Red
-            let glowColor = 'rgba(255, 59, 48, 0.5)';
 
             if (entropy >= veryStrongEntropy) {
                 color = '#00c3ff'; // Cyan
-                glowColor = 'rgba(0, 195, 255, 0.5)';
             } else if (minimumPasswordEntropy !== null && entropy >= minimumPasswordEntropy) {
                 color = '#34c759'; // Green
-                glowColor = 'rgba(52, 199, 89, 0.5)';
             } else if (entropy >= weakEntropy) {
                 color = '#ffcc00'; // Yellow
-                glowColor = 'rgba(255, 204, 0, 0.5)';
             }
 
             strengthBar.style.backgroundColor = color;
-            strengthBar.style.boxShadow = `0 0 8px ${glowColor}`;
         }
         
         if (strengthLabel) {
