@@ -1,4 +1,6 @@
-# yt-dlp-web
+<p align="center">
+  <img src="graphics/logo.png" alt="yt-dlp-web logo" width="600">
+</p>
 
 yt-dlp-web is a self-hosted web frontend for [yt-dlp](https://github.com/yt-dlp/yt-dlp). It is intended to be as simple as possible to configure and use: install the required tools, create one configuration file and user account, then start the embedded web server.
 
