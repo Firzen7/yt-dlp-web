@@ -1,17 +1,20 @@
 package net.firzen.web.logging
 
+import org.slf4j.LoggerFactory
+
 /**
- * A custom Logger class with an interface similar to Timber.
- * Currently, it uses println for output.
+ * Sends application diagnostics through SLF4J using a compact Timber-style API.
  */
 object Logger {
+    private val logger = LoggerFactory.getLogger(Logger::class.java)
+
     /**
      * Writes a diagnostic message at debug level.
      *
      * @param message diagnostic text to write
      */
     fun d(message: String) {
-        println("${LogLevel.DEBUG}: $message")
+        logger.debug(message)
     }
 
     /**
@@ -20,7 +23,7 @@ object Logger {
      * @param message informational text to write
      */
     fun i(message: String) {
-        println("${LogLevel.INFO}: $message")
+        logger.info(message)
     }
 
     /**
@@ -29,7 +32,7 @@ object Logger {
      * @param message warning text to write
      */
     fun w(message: String) {
-        println("${LogLevel.WARNING}: $message")
+        logger.warn(message)
     }
 
     /**
@@ -39,7 +42,6 @@ object Logger {
      * @param throwable optional failure whose stack trace should be printed
      */
     fun e(message: String, throwable: Throwable? = null) {
-        println("${LogLevel.ERROR}: $message")
-        throwable?.printStackTrace()
+        logger.error(message, throwable)
     }
 }

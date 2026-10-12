@@ -62,11 +62,15 @@ dependencies {
     implementation("io.ktor:ktor-server-sessions:$ktor_version")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // SLF4J logging API and Logback console provider, MIT and EPL/LGPL licenses.
+    implementation("org.slf4j:slf4j-api:2.0.18")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.3")
+
     // Konfig - simple configuration file API for Kotlin, https://github.com/npryce/konfig, Apache 2.0 license
     implementation("com.natpryce:konfig:1.6.10.0")
 
     // Bouncy Castle - cryptographic library for scrypt password hashing, MIT license
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 
     // Joda Time, Apache 2.0 license
     implementation("joda-time:joda-time:2.14.1")
