@@ -2,6 +2,18 @@
 
 yt-dlp-web is a self-hosted web frontend for [yt-dlp](https://github.com/yt-dlp/yt-dlp). It is intended to be as simple as possible to configure and use: install the required tools, create one configuration file and user account, then start the embedded web server.
 
+## Quick Start
+
+Run the JAR from a writable directory:
+
+```bash
+java -jar yt-dlp-web.jar server
+```
+
+Open [http://localhost:8080/](http://localhost:8080/). The default port is `8080`, and `config.conf` is automatically created in the working directory with default values if it does not already exist.
+
+See [Requirements](#requirements) for dependencies and [Initial Setup](#initial-setup) to create your first login account. Replace `yt-dlp-web.jar` with the actual JAR filename.
+
 ## Features
 
 - Authenticated browser interface for downloading video or audio.
